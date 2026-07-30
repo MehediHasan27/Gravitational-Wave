@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SINGULARIS — Two Black Holes Become One</title>
-<meta name="description" content="A gravitational-wave merger, rendered in the browser. Two black holes spiral in, collide, and send a ripple through the page itself.">
+<meta name="description" content="A gravitational-wave merger, rendered in the browser. Two black holes spiral in, collide, tear the page apart, and let it reassemble out of dust.">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
 <!-- ============================================================
-     SVG displacement filter — applied to the hero only, one-shot.
-     JS animates scale/baseFrequency during merge + shock passage.
+     SVG displacement filter — hero subtree only, one-shot.
+     JS animates scale/baseFrequency during the pre-merge tremor.
      ============================================================ -->
 <svg class="filter-defs" aria-hidden="true" focusable="false">
   <defs>
@@ -26,8 +26,11 @@
   </defs>
 </svg>
 
-<!-- shake wrapper: ONLY ever gets translate3d/rotate. Never anything else,
-     so it can't fight the per-element warp transforms. -->
+<!-- the spacetime lattice, in its own layer so the tear can eat it -->
+<div class="lattice" aria-hidden="true"></div>
+
+<!-- shake wrapper: ONLY ever gets translate3d/rotate, so it can never
+     fight the per-element warp and tear transforms. -->
 <div id="shake">
 <div id="page">
 
@@ -57,23 +60,22 @@
       </p>
 
       <h1 class="title" id="title" aria-label="Two black holes become one">
-        <!-- filled by JS: one span per glyph, each its own warp target -->
+        <!-- filled by JS: one span per glyph, each its own tear fragment -->
       </h1>
 
-      <p class="lede" data-warp="text">
+      <p class="lede" data-split="word">
         For a fifth of a second, three solar masses stopped being matter and
         became a wave. It crossed four billion years of vacuum, passed through
-        the Earth, and stretched this page by one part in 10<sup>21</sup>.
+        the Earth, and tore this page in half.
       </p>
 
       <p class="hint" id="hint" data-warp="text">
-        Sound on. Headphones better. Content below distorts as the wave passes.
+        Sound on. Headphones better. The page does not survive it.
       </p>
 
       <div class="cta-row">
         <button class="btn btn-primary" id="trigger" data-warp="box">
-          <span class="btn-label">INITIATE MERGER</span>
-          <span class="btn-glow" aria-hidden="true"></span>
+          INITIATE MERGER
         </button>
         <a class="btn btn-ghost" href="#log" data-warp="box">READ THE PAPER</a>
       </div>
@@ -85,21 +87,21 @@
   </header>
 
   <!-- ============================ STATS ============================ -->
-  <section class="stats" aria-label="Merger parameters">
+  <section class="stats frame" aria-label="Merger parameters">
     <div class="stat" data-warp="box">
-      <span class="stat-num" data-warp="text">62</span>
+      <span class="stat-num" data-split="word">62</span>
       <span class="stat-lbl" data-warp="text">Final mass / M<sub>&#9737;</sub></span>
     </div>
     <div class="stat" data-warp="box">
-      <span class="stat-num" data-warp="text">3.0</span>
+      <span class="stat-num" data-split="word">3.0</span>
       <span class="stat-lbl" data-warp="text">Radiated as gravity</span>
     </div>
     <div class="stat" data-warp="box">
-      <span class="stat-num" data-warp="text">250</span>
+      <span class="stat-num" data-split="word">250</span>
       <span class="stat-lbl" data-warp="text">Peak frequency / Hz</span>
     </div>
     <div class="stat" data-warp="box">
-      <span class="stat-num" data-warp="text">0.2</span>
+      <span class="stat-num" data-split="word">0.2</span>
       <span class="stat-lbl" data-warp="text">Duration / s</span>
     </div>
   </section>
@@ -107,26 +109,26 @@
   <!-- ============================ EFFECTS ============================ -->
   <section class="block" id="effects">
     <p class="kicker" data-warp="text">01 &mdash; Propagation</p>
-    <h2 class="h2" data-warp="text">What the wave does to<br>everything it touches</h2>
+    <h2 class="h2" data-split="word">What the wave does to everything it touches</h2>
 
-    <div class="cards">
+    <div class="cards frame">
       <article class="card" data-warp="box">
         <span class="card-idx" data-warp="text">i</span>
-        <h3 data-warp="text">Strain</h3>
+        <h3 data-split="word">Strain</h3>
         <p data-warp="text">Space itself lengthens along one axis and shortens
         along the other, then swaps, at the frequency of the orbit. Nothing
         moves through space. Space moves.</p>
       </article>
       <article class="card" data-warp="box">
         <span class="card-idx" data-warp="text">ii</span>
-        <h3 data-warp="text">Chirp</h3>
+        <h3 data-split="word">Chirp</h3>
         <p data-warp="text">As the orbit tightens, frequency climbs as
         <em>(t<sub>c</sub>&minus;t)</em><sup>&minus;3/8</sup>. The same curve
         drives the pitch you hear and the spin you see. One function, both senses.</p>
       </article>
       <article class="card" data-warp="box">
         <span class="card-idx" data-warp="text">iii</span>
-        <h3 data-warp="text">Ringdown</h3>
+        <h3 data-split="word">Ringdown</h3>
         <p data-warp="text">The remnant is briefly the wrong shape. It rings
         like a struck bell at its quasinormal modes, sheds the asymmetry, and
         settles into perfect Kerr silence.</p>
@@ -137,7 +139,7 @@
   <!-- ============================ LOG ============================ -->
   <section class="block narrow" id="log">
     <p class="kicker" data-warp="text">02 &mdash; Detection log</p>
-    <h2 class="h2" data-warp="text">0.2 seconds, four billion years late</h2>
+    <h2 class="h2" data-split="word">0.2 seconds, four billion years late</h2>
 
     <p class="body" data-warp="text">
       The two bodies had been circling each other for an age, radiating orbital
@@ -165,7 +167,7 @@
   <!-- ============================ SIGNAL ============================ -->
   <section class="block narrow" id="signal">
     <p class="kicker" data-warp="text">03 &mdash; Subscribe</p>
-    <h2 class="h2" data-warp="text">Get the next one</h2>
+    <h2 class="h2" data-split="word">Get the next one</h2>
     <p class="body" data-warp="text">
       Roughly one detection a week now. We send a short note when something
       unusual comes through &mdash; an unexpected mass gap, a neutron star, an
@@ -176,8 +178,7 @@
       <input class="field" id="email" name="email" type="email"
              placeholder="you@observatory.org" data-warp="box" required>
       <button class="btn btn-primary compact" type="submit" data-warp="box">
-        <span class="btn-label">NOTIFY ME</span>
-        <span class="btn-glow" aria-hidden="true"></span>
+        NOTIFY ME
       </button>
     </form>
     <p class="fineprint" id="formNote" data-warp="text" role="status">
@@ -194,19 +195,16 @@
 </div><!-- /#shake -->
 
 <!-- ============================================================
-     Overlays. Outside #shake so shake never double-transforms them.
+     Overlays. Outside #shake so the shake never double-transforms
+     them. See the z-index ladder in style.css.
      ============================================================ -->
-
-<!-- expanding shock ring: backdrop-filter distorts EVERYTHING behind it -->
+<canvas id="rip" aria-hidden="true"></canvas>
 <div class="shock-lens" id="shockLens" aria-hidden="true"></div>
-<!-- visible light of the wavefront -->
 <div class="shock-glow" id="shockGlow" aria-hidden="true"></div>
-<!-- merge flash -->
-<div class="flash" id="flash" aria-hidden="true"></div>
-<!-- film grain / gravitational noise -->
 <div class="grain" id="grain" aria-hidden="true"></div>
+<canvas id="dust" aria-hidden="true"></canvas>
+<div class="flash" id="flash" aria-hidden="true"></div>
 
-<!-- intensity control -->
 <div class="intensity" role="group" aria-label="Motion intensity">
   <button data-int="full">FULL</button>
   <button data-int="reduced">REDUCED</button>

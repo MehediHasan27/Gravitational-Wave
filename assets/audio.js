@@ -271,6 +271,69 @@ window.GWAudio = (function () {
       [[0, 0.02], [0.6, 0.20], [4.0, 0.0001]]);
   }
 
+  /* Spacetime failing: a fabric rip, not an explosion. Resonant noise
+     collapsing downward, a sheet-metal shriek over it, and granular
+     shreds scattered across the tear so it sounds like it is still
+     coming apart after the initial break. */
+  function tear() {
+    if (!enabled || !ready()) return;
+    const t0 = ctx.currentTime + 0.005;
+
+    noise(t0, 0.58, 'bandpass',
+      (p, t) => { p.setValueAtTime(4200, t);
+                  p.exponentialRampToValueAtTime(320, t + 0.5); },
+      [[0, 0.55], [0.08, 0.40], [0.58, 0.0001]], 9);
+
+    osc('sawtooth', t0 + 0.02, 0.5,
+      (p, t) => { p.setValueAtTime(1900, t);
+                  p.exponentialRampToValueAtTime(140, t + 0.45); },
+      [[0, 0.16], [0.5, 0.0001]]);
+
+    osc('sine', t0, 0.75,
+      (p, t) => { p.setValueAtTime(92, t);
+                  p.exponentialRampToValueAtTime(26, t + 0.6); },
+      [[0, 0.48], [0.75, 0.0001]]);
+
+    for (let i = 0; i < 14; i++) {
+      const tt = t0 + Math.pow(i / 14, 1.4) * 0.62;
+      const f  = 1200 + Math.random() * 3000;
+      noise(tt, 0.05, 'highpass',
+        (p, t) => p.setValueAtTime(f, t),
+        [[0, 0.09 + Math.random() * 0.13], [0.05, 0.0001]], 1.0);
+    }
+  }
+
+  /* Reassembly: quiet bells arriving in a rising cluster, one per
+     handful of particles landing, under a filter swell that opens as
+     the page comes back. */
+  function reform(dur) {
+    if (!enabled || !ready()) return;
+    const t0 = ctx.currentTime + 0.01;
+    const D = dur || 2.4;
+
+    noise(t0, D, 'bandpass',
+      (p, t) => { p.setValueAtTime(300, t);
+                  p.exponentialRampToValueAtTime(3400, t + D * 0.8); },
+      [[0, 0.02], [D * 0.55, 0.15], [D, 0.02]], 1.6);
+
+    const SCALE = [196.0, 233.1, 261.6, 311.1, 349.2, 392.0,
+                   466.2, 523.3, 622.3, 698.5, 784.0];
+    for (let i = 0; i < 26; i++) {
+      const x = i / 25;
+      const tt = t0 + Math.pow(x, 0.85) * D * 0.82;
+      const f = SCALE[Math.min(SCALE.length - 1, Math.floor(x * SCALE.length))] *
+                (Math.random() < 0.3 ? 2 : 1);
+      osc('sine', tt, 0.9,
+        (p, t) => p.setValueAtTime(f, t),
+        [[0, 0.045 + Math.random() * 0.05], [0.9, 0.0001]]);
+    }
+
+    osc('triangle', t0 + D * 0.55, D * 0.6,
+      (p, t) => { p.setValueAtTime(98, t);
+                  p.linearRampToValueAtTime(130.8, t + D * 0.5); },
+      [[0, 0.01], [D * 0.35, 0.09], [D * 0.6, 0.0001]]);
+  }
+
   function abort() {
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -281,7 +344,7 @@ window.GWAudio = (function () {
   }
 
   return {
-    ready, setEnabled, inspiral, merge, abort,
+    ready, setEnabled, inspiral, merge, tear, reform, abort,
     isEnabled: () => enabled,
     now: () => (ctx ? ctx.currentTime : 0),
     hasCtx: () => !!ctx

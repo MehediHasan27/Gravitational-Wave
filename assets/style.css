@@ -1,36 +1,38 @@
 /* ============================================================
    SINGULARIS — gravitational-wave landing page
    ------------------------------------------------------------
-   Registered custom properties are load-bearing: --w must be a
-   real <number> for calc() interpolation, not an unparsed string.
+   The page is monochrome on purpose. The only colour anywhere is
+   the accretion flow in the hero canvas, so colour reads as
+   "this is the physical event" rather than as decoration.
+
+   Registered custom properties are load-bearing. --w and --tr must
+   be real <number>s or every calc() below collapses.
    ============================================================ */
 
 @property --w      { syntax: '<number>'; inherits: true;  initial-value: 0; }
+@property --tr     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --tv     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --tx     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --ty     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --rot    { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --tear-g { syntax: '<number>'; inherits: true;  initial-value: 0; }
 @property --shock-r{ syntax: '<length>'; inherits: false; initial-value: 0px; }
-@property --shock-a{ syntax: '<number>'; inherits: false; initial-value: 0; }
 
 :root{
-  /* inferno-ish palette, lifted from the reference frames */
-  --void:    #030208;
-  --navy:    #0b1046;
-  --violet:  #3a1173;
-  --magenta: #b4188e;
-  --rose:    #f0518a;
-  --amber:   #ff9a3c;
-  --hot:     #ffe9a8;
-
-  --ink:     #f4f1ff;
-  --ink-dim: #a09ac0;
-  --ink-far: #6b6690;
-  --line:    rgba(150,140,220,.16);
+  --void:    #050507;
+  --ink:     #f2f2f4;
+  --ink-dim: #9a9aa4;
+  --ink-far: #5e5e68;
+  --line:    rgba(255,255,255,.11);
+  --line-hi: rgba(255,255,255,.30);
 
   --shock-x: 50vw;
-  --shock-y: 42vh;
+  --shock-y: 60vh;
 
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
 
-  /* global amplitude — main.js scales this by intensity setting */
+  /* global amplitude — main.js scales this by the intensity setting */
   --amp: 1;
 }
 
@@ -48,17 +50,7 @@ body{
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
-
-  /* faint spacetime lattice — the shock ring's backdrop-filter
-     visibly kinks this, which is most of why the wave reads as real */
-  background-image:
-    linear-gradient(to right,  var(--line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
-  background-size: 88px 88px;
-  background-position: center top;
 }
-
-body.is-merging{ cursor: none; }
 
 .filter-defs{ position: absolute; width: 0; height: 0; overflow: hidden; }
 
@@ -67,49 +59,93 @@ body.is-merging{ cursor: none; }
   overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
 }
 
+/* The spacetime lattice lives in its own fixed layer rather than on
+   <body>, so the tear can fade and blur it independently. */
+.lattice{
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right,  var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 92px 92px;
+  background-position: center top;
+  opacity: calc(1 - var(--tear-g));
+  filter: blur(calc(var(--tear-g) * 2px));
+}
+
+#shake{ position: relative; z-index: 1; }
+
 /* ============================================================
-   THE WARP — every [data-warp] element is a wavefront sampler.
-   main.js writes --w (0..1, signed by wave polarity) per frame.
-   Only transform / filter / shadow: no layout properties, ever.
+   THE WARP AND THE TEAR
+   ------------------------------------------------------------
+   Every [data-warp] element is a wavefront sampler. main.js writes
+   two numbers per frame:
+
+     --w   signed wave amplitude, -1..1   (ripple)
+     --tr  displacement, 0..1             (thrown apart)
+     --tv  invisibility, 0..1             (faded out)
+
+   Two tear channels, not one, and that split matters. On the way out
+   they move together: the fragment is flung outward and fades. On the
+   way back, --tr collapses almost instantly while --tv is still 1, so
+   the element returns to its real position while invisible and then
+   fades up in place. The particles do the travelling. If the DOM flew
+   back too you would see it in mid-air next to its own dust, which
+   reads as a double exposure.
+
+   plus three values written once at setup:
+
+     --tx --ty  unit vector away from the epicentre
+     --rot      random rotation sign/magnitude
+
+   Only transform / filter / opacity / shadow. No layout properties,
+   ever, or the whole page reflows sixty times a second.
    ============================================================ */
 
 [data-warp]{
-  --w: 0;
+  --w: 0; --tr: 0; --tv: 0; --tx: 0; --ty: 0; --rot: 0;
   transform:
-    translate3d(calc(var(--w) * var(--amp) * 18px),
-                calc(var(--w) * var(--amp) * -11px), 0)
+    translate3d(
+      calc(var(--w) * var(--amp) * 18px
+           + var(--tx) * var(--tr) * var(--tr) * var(--amp) * 300px),
+      calc(var(--w) * var(--amp) * -11px
+           + var(--ty) * var(--tr) * var(--tr) * var(--amp) * 300px),
+      0)
+    rotate(calc(var(--rot) * var(--tr) * var(--amp) * 1deg))
     skewX(calc(var(--w) * var(--amp) * 7deg))
     skewY(calc(var(--w) * var(--amp) * -2.5deg))
-    scale(calc(1 + var(--w) * var(--amp) * 0.075));
-  filter: blur(calc(max(var(--w), calc(var(--w) * -1)) * var(--amp) * 2.6px));
-  will-change: auto;
+    scale(calc(1 + var(--w) * var(--amp) * 0.075
+                 - var(--tr) * var(--amp) * 0.38));
+  filter: blur(calc(
+      max(var(--w), calc(var(--w) * -1)) * var(--amp) * 2.6px
+      + var(--tr) * var(--amp) * 5px));
+  opacity: calc(1 - var(--tv) * var(--amp));
 }
 
-[data-warp].warping{ will-change: transform, filter; }
+[data-warp].warping{ will-change: transform, filter, opacity; }
 
-/* chromatic split — the wave separates colour channels because
-   different wavelengths take different paths through curved space.
-   (Not true. Looks true.) */
+/* Monochrome misregistration instead of red/cyan fringing. Same
+   mechanism, no colour: the glyph doubles into a light and a dark
+   ghost, like a bad print run. */
 [data-warp="text"]{
   text-shadow:
-    calc(var(--w) * var(--amp) *  8px) 0 rgba(255, 40, 110, .78),
-    calc(var(--w) * var(--amp) * -8px) 0 rgba(0, 190, 255, .78);
+    calc(var(--w) * var(--amp) *  9px) 0 rgba(255,255,255,.50),
+    calc(var(--w) * var(--amp) * -9px) 0 rgba(0,0,0,.92);
 }
 
 [data-warp="box"]{
   box-shadow:
-    calc(var(--w) * var(--amp) *  10px) 0 0 rgba(255, 40, 110, .40),
-    calc(var(--w) * var(--amp) * -10px) 0 0 rgba(0, 190, 255, .40);
+    calc(var(--w) * var(--amp) *  11px) 0 0 rgba(255,255,255,.22),
+    calc(var(--w) * var(--amp) * -11px) 0 0 rgba(0,0,0,.85);
 }
 
-/* per-glyph title spans get their own warp, so the headline
-   ripples letter by letter as the wavefront sweeps across it.
-   .word keeps inline-block so lines still break at spaces. */
-.title .word{ display: inline-block; }
-.title .word span{
-  display: inline-block;
-  transform-origin: 50% 60%;
-}
+/* Structural frames can't be torn individually without their
+   children double-transforming, so they just fade with the page. */
+.frame{ opacity: calc(1 - var(--tear-g)); }
+
+/* per-glyph and per-word fragments: the unit the tear breaks along */
+.title .word,
+.frag{ display: inline-block; }
+.title .word span{ display: inline-block; transform-origin: 50% 60%; }
 
 /* ============================================================
    HERO
@@ -125,21 +161,17 @@ body.is-merging{ cursor: none; }
 }
 
 #bh{
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  z-index: 0;
-  /* the canvas is the light source for the whole page */
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block; z-index: 0;
 }
 
 .hero-veil{
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
-    radial-gradient(120% 80% at 50% 68%, transparent 30%, rgba(3,2,8,.55) 68%, rgba(3,2,8,.92) 100%),
+    radial-gradient(120% 80% at 50% 68%, transparent 30%, rgba(5,5,7,.55) 68%, rgba(5,5,7,.93) 100%),
     linear-gradient(to bottom,
-      rgba(3,2,8,.80) 0%, rgba(3,2,8,.52) 18%, rgba(3,2,8,.20) 34%,
+      rgba(5,5,7,.82) 0%, rgba(5,5,7,.54) 18%, rgba(5,5,7,.20) 34%,
       transparent 52%, transparent 84%, var(--void) 100%);
 }
 
@@ -153,141 +185,116 @@ body.is-merging{ cursor: none; }
 }
 .brand{ font-weight: 600; letter-spacing: .3em; }
 .nav-links{
-  display: flex; gap: 26px; list-style: none; margin: 0; padding: 0;
-  margin-left: auto;
+  display: flex; gap: 26px; list-style: none; margin: 0 0 0 auto; padding: 0;
 }
 .nav-links a{
-  color: var(--ink-dim); text-decoration: none; transition: color .25s;
+  color: var(--ink-dim); text-decoration: none; transition: color .2s;
 }
-.nav-links a:hover{ color: var(--hot); }
+.nav-links a:hover{ color: var(--ink); }
 
 .sound-toggle{
   display: inline-flex; align-items: center; gap: 9px;
-  background: rgba(255,255,255,.04);
+  background: transparent;
   border: 1px solid var(--line);
-  color: var(--ink-dim);
+  color: var(--ink-far);
   font: inherit; letter-spacing: .16em;
-  padding: 8px 13px; border-radius: 999px;
-  cursor: pointer; transition: color .25s, border-color .25s, background .25s;
+  padding: 8px 13px; border-radius: 0;
+  cursor: pointer; transition: color .2s, border-color .2s;
 }
-.sound-toggle:hover{ color: var(--ink); border-color: rgba(255,154,60,.5); }
+.sound-toggle:hover{ color: var(--ink-dim); border-color: var(--line-hi); }
 .sound-toggle[aria-pressed="true"]{
-  color: var(--amber); border-color: rgba(255,154,60,.55);
-  background: rgba(255,154,60,.08);
+  color: var(--ink); border-color: var(--line-hi);
 }
 .sound-icon{
-  width: 7px; height: 7px; border-radius: 50%;
-  background: currentColor; opacity: .45;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: .4;
 }
 .sound-toggle[aria-pressed="true"] .sound-icon{
-  opacity: 1; animation: sonar 1.6s ease-out infinite;
+  opacity: 1; animation: sonar 2s ease-out infinite;
 }
 @keyframes sonar{
-  0%   { box-shadow: 0 0 0 0 rgba(255,154,60,.6); }
-  100% { box-shadow: 0 0 0 9px rgba(255,154,60,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,.45); }
+  100% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
 }
 
 /* ---- hero copy ---- */
 .hero-inner{
   position: relative; z-index: 3;
-  /* copy sits in the upper half; the binary owns the lower half */
   margin: clamp(12px, 3vh, 40px) auto auto;
-  width: 100%;
-  max-width: 1000px;
+  width: 100%; max-width: 1000px;
   padding: 0 clamp(20px, 5vw, 64px);
   text-align: center;
 }
 
 .eyebrow{
   display: inline-flex; align-items: center;
-  flex-wrap: wrap; justify-content: center;
-  gap: 4px 10px;
+  flex-wrap: wrap; justify-content: center; gap: 4px 10px;
   font-family: var(--mono); font-size: 11px;
-  letter-spacing: .22em; color: var(--amber);
+  letter-spacing: .22em; color: var(--ink-far);
   margin: 0 0 26px;
 }
-.eyebrow sub{ font-size: .8em; }
 .pulse-dot{
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--amber); flex: 0 0 auto;
-  animation: sonar 2.2s ease-out infinite;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--ink-dim); flex: 0 0 auto;
+  animation: sonar 2.4s ease-out infinite;
 }
 
 .title{
   margin: 0 0 22px;
   font-size: clamp(2.5rem, 7.4vw, 5.4rem);
   line-height: .96;
-  letter-spacing: -.035em;
-  font-weight: 680;
+  letter-spacing: -.038em;
+  font-weight: 660;
+  color: var(--ink);
   text-wrap: balance;
-}
-/* gradient is set per glyph, not on the h1: each span is its own
-   paint box once it becomes inline-block, so inheriting a
-   background from the parent would tile wrong. */
-.title .word span{
-  color: transparent;
-  background-image: linear-gradient(176deg,
-    #ffffff 0%, #ffffff 58%, #ffdcee 84%, var(--rose) 100%);
-  -webkit-background-clip: text; background-clip: text;
 }
 
 .lede{
   max-width: 54ch; margin: 0 auto 4px;
   color: var(--ink-dim); font-size: clamp(.95rem, 1.5vw, 1.06rem);
 }
-.lede sup{ font-size: .7em; }
 
 .cta-row{
-  display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
   margin-top: 26px;
 }
 
-/* ---- buttons ---- */
+/* ---- buttons: flat, bordered, no glow, no gradient ---- */
 .btn{
-  position: relative; overflow: hidden;
+  position: relative;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 16px 30px;
   font-family: var(--mono); font-size: 11.5px;
   letter-spacing: .2em; font-weight: 500;
   text-decoration: none; cursor: pointer;
-  border-radius: 2px;
+  border-radius: 0;
   border: 1px solid transparent;
-  transition: transform .18s cubic-bezier(.2,.8,.2,1),
-              border-color .25s, color .25s, background .25s;
+  transition: background .18s, color .18s, border-color .18s, transform .12s;
 }
 .btn.compact{ padding: 14px 24px; }
-.btn:active{ transform: translateY(1px) scale(.985); }
+.btn:active{ transform: translateY(1px); }
 
 .btn-primary{
-  color: #150407;
-  background: linear-gradient(100deg, var(--hot), var(--amber) 55%, var(--rose));
-  box-shadow: 0 0 0 1px rgba(255,200,120,.4), 0 14px 44px -14px rgba(255,120,60,.75);
+  color: #08080a;
+  background: var(--ink);
+  border-color: var(--ink);
 }
-.btn-primary .btn-glow{
-  position: absolute; inset: -60% -20%;
-  background: radial-gradient(closest-side, rgba(255,255,255,.75), transparent 70%);
-  opacity: 0; transition: opacity .3s; pointer-events: none;
-}
-.btn-primary:hover .btn-glow{ opacity: .5; }
-.btn-label{ position: relative; z-index: 1; }
+.btn-primary:hover{ background: #fff; }
 
-/* the gas behind this button is bright and moving, so it needs a
-   real scrim rather than a hairline of translucent white */
 .btn-ghost{
-  color: var(--ink);
-  border-color: rgba(180,170,230,.28);
-  background: rgba(4,2,12,.58);
+  color: var(--ink-dim);
+  border-color: var(--line-hi);
+  background: rgba(5,5,7,.55);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
-.btn-ghost:hover{ color: var(--ink); border-color: rgba(180,24,142,.6); }
+.btn-ghost:hover{ color: var(--ink); border-color: var(--ink-dim); }
 
 .btn:focus-visible, .field:focus-visible,
 .nav-links a:focus-visible, .sound-toggle:focus-visible,
 .intensity button:focus-visible{
-  outline: 2px solid var(--amber); outline-offset: 3px;
+  outline: 2px solid var(--ink); outline-offset: 3px;
 }
 
-/* charging state while the chirp climbs */
 #trigger.charging{
   animation: charge-shudder .09s steps(2) infinite;
   pointer-events: none;
@@ -296,30 +303,26 @@ body.is-merging{ cursor: none; }
   0%   { transform: translate3d(-.6px, .4px, 0); }
   100% { transform: translate3d(.6px, -.4px, 0); }
 }
-#trigger[disabled]{ opacity: .35; pointer-events: none; }
+#trigger[aria-disabled="true"]{ pointer-events: none; }
 
 .hint{
   display: inline-block;
   margin: 16px 0 0;
-  padding: 7px 15px;
-  border-radius: 999px;
-  background: rgba(4,2,12,.55);
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  background: rgba(5,5,7,.6);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   font-family: var(--mono); font-size: 10.5px;
   letter-spacing: .14em; color: var(--ink-dim);
   transition: opacity .5s;
-  /* Sits over live gas, so it needs its own scrim shadow. This rule
-     has the same specificity as [data-warp="text"] and comes later,
-     so it would silently kill the chroma split — the --w layers are
-     restated here rather than lost. */
+  /* Same specificity as [data-warp="text"] and declared later, so it
+     would silently drop the misregistration — restated here. */
   text-shadow:
-    0 1px 10px rgba(3,2,8,.95),
-    0 0 26px rgba(3,2,8,.85),
-    calc(var(--w) * var(--amp) *  8px) 0 rgba(255, 40, 110, .78),
-    calc(var(--w) * var(--amp) * -8px) 0 rgba(0, 190, 255, .78);
+    0 1px 10px rgba(5,5,7,.95),
+    calc(var(--w) * var(--amp) *  9px) 0 rgba(255,255,255,.50),
+    calc(var(--w) * var(--amp) * -9px) 0 rgba(0,0,0,.92);
 }
 
-/* ---- scroll cue ---- */
 .scroll-cue{
   position: relative; z-index: 3;
   display: grid; place-items: center; padding-bottom: 30px;
@@ -331,8 +334,8 @@ body.is-merging{ cursor: none; }
   animation: cue 2.6s cubic-bezier(.7,0,.3,1) infinite;
 }
 @keyframes cue{
-  0%,100%{ transform: scaleY(.25); opacity: .25; }
-  45%    { transform: scaleY(1);   opacity: 1; }
+  0%,100%{ transform: scaleY(.25); opacity: .2; }
+  45%    { transform: scaleY(1);   opacity: .9; }
 }
 
 /* ============================================================
@@ -353,7 +356,7 @@ body.is-merging{ cursor: none; }
   font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1;
   font-weight: 300; letter-spacing: -.03em;
   font-variant-numeric: tabular-nums;
-  color: var(--amber);
+  color: var(--ink);
 }
 .stat-lbl{
   font-family: var(--mono); font-size: 10px;
@@ -368,13 +371,13 @@ body.is-merging{ cursor: none; }
 
 .kicker{
   font-family: var(--mono); font-size: 10.5px;
-  letter-spacing: .22em; color: var(--magenta);
+  letter-spacing: .22em; color: var(--ink-far);
   margin: 0 0 18px;
 }
 
 .h2{
   font-size: clamp(1.8rem, 4.4vw, 3.2rem);
-  line-height: 1.06; letter-spacing: -.03em; font-weight: 600;
+  line-height: 1.06; letter-spacing: -.032em; font-weight: 600;
   margin: 0 0 44px; text-wrap: balance;
 }
 
@@ -387,18 +390,18 @@ body.is-merging{ cursor: none; }
 .card{
   background: var(--void);
   padding: 36px 30px 40px;
-  transition: background .35s;
+  transition: background .3s;
 }
-.card:hover{ background: #08061a; }
+.card:hover{ background: #0b0b0e; }
 .card-idx{
   font-family: var(--mono); font-size: 11px;
-  letter-spacing: .2em; color: var(--magenta);
+  letter-spacing: .2em; color: var(--ink-far);
 }
 .card h3{
   margin: 16px 0 12px;
-  font-size: 1.28rem; font-weight: 600; letter-spacing: -.015em;
+  font-size: 1.26rem; font-weight: 600; letter-spacing: -.015em;
 }
-.card p{ margin: 0; color: var(--ink-dim); font-size: .945rem; }
+.card p{ margin: 0; color: var(--ink-dim); font-size: .94rem; }
 
 .body{
   color: var(--ink-dim);
@@ -409,26 +412,24 @@ body.is-merging{ cursor: none; }
   color: var(--ink);
   font-size: clamp(1.2rem, 2.4vw, 1.6rem);
   line-height: 1.34; letter-spacing: -.02em;
-  border-left: 2px solid var(--magenta);
+  border-left: 1px solid var(--line-hi);
   padding: 6px 0 6px 26px;
   margin: 42px 0;
 }
 
-.signup{
-  display: flex; gap: 10px; flex-wrap: wrap; margin: 34px 0 14px;
-}
+.signup{ display: flex; gap: 10px; flex-wrap: wrap; margin: 34px 0 14px; }
 .field{
   flex: 1 1 260px;
-  background: rgba(255,255,255,.03);
+  background: transparent;
   border: 1px solid var(--line);
   color: var(--ink);
   font: inherit; font-size: .95rem;
-  padding: 15px 18px; border-radius: 2px;
-  transition: border-color .25s, background .25s;
+  padding: 15px 18px; border-radius: 0;
+  transition: border-color .2s;
 }
 .field::placeholder{ color: var(--ink-far); }
-.field:focus{ outline: none; border-color: var(--amber); background: rgba(255,154,60,.05); }
-.field.invalid{ border-color: var(--rose); }
+.field:focus{ outline: none; border-color: var(--ink-dim); }
+.field.invalid{ border-color: var(--ink); border-style: dashed; }
 
 .fineprint{
   font-family: var(--mono); font-size: 10px;
@@ -445,18 +446,31 @@ body.is-merging{ cursor: none; }
 }
 
 /* ============================================================
-   OVERLAYS — the wavefront
+   OVERLAYS
+   Stack, bottom to top:
+     55 rip      opaque wedges — must cover page content
+     60 lens     masked backdrop-filter ring
+     61 glow     light of the wavefront
+     62 grain
+     66 dust     particle reassembly
+     70 flash
+     80 controls
    ============================================================ */
 
-/* A. the lens. backdrop-filter inside a ring-shaped mask, so it
-   distorts live DOM behind it (text included) with zero repaint
-   of that DOM. This is the cheap half of the ripple. */
+#rip, #dust{
+  position: fixed; inset: 0; pointer-events: none;
+  width: 100%; height: 100%;
+}
+#rip{ z-index: 55; }
+#dust{ z-index: 66; }
+
+/* masked backdrop-filter ring: distorts live DOM with no repaint of
+   it. Grayscale, not hue-rotate — this page has no hue to rotate. */
 .shock-lens{
   position: fixed; inset: 0; z-index: 60;
-  pointer-events: none;
-  opacity: 0;
-  backdrop-filter: blur(12px) saturate(2) contrast(1.45) hue-rotate(16deg);
-  -webkit-backdrop-filter: blur(12px) saturate(2) contrast(1.45) hue-rotate(16deg);
+  pointer-events: none; opacity: 0;
+  backdrop-filter: blur(12px) grayscale(1) contrast(1.6) brightness(1.25);
+  -webkit-backdrop-filter: blur(12px) grayscale(1) contrast(1.6) brightness(1.25);
   --shock-r: 0px;
   -webkit-mask-image: radial-gradient(circle at var(--shock-x) var(--shock-y),
       transparent calc(var(--shock-r) - 118px),
@@ -470,7 +484,6 @@ body.is-merging{ cursor: none; }
       transparent calc(var(--shock-r) + 66px));
 }
 
-/* B. the light of the wavefront, so it exists even over empty space */
 .shock-glow{
   position: fixed; inset: 0; z-index: 61;
   pointer-events: none; opacity: 0;
@@ -478,26 +491,23 @@ body.is-merging{ cursor: none; }
   --shock-r: 0px;
   background: radial-gradient(circle at var(--shock-x) var(--shock-y),
       transparent calc(var(--shock-r) - 90px),
-      rgba(180, 24, 142, .22) calc(var(--shock-r) - 34px),
-      rgba(255, 154,  60, .62) calc(var(--shock-r) - 7px),
-      rgba(255, 245, 214, .92) var(--shock-r),
-      rgba(140, 70, 255, .24) calc(var(--shock-r) + 26px),
+      rgba(255,255,255,.10) calc(var(--shock-r) - 34px),
+      rgba(255,255,255,.42) calc(var(--shock-r) - 7px),
+      rgba(255,255,255,.95) var(--shock-r),
+      rgba(255,255,255,.16) calc(var(--shock-r) + 26px),
       transparent calc(var(--shock-r) + 74px));
 }
 
-/* C. merge flash */
 .flash{
   position: fixed; inset: 0; z-index: 70;
   pointer-events: none; opacity: 0;
   mix-blend-mode: screen;
   background: radial-gradient(circle at var(--shock-x) var(--shock-y),
-      var(--hot) 0%, var(--amber) 24%, var(--magenta) 52%, transparent 78%);
+      #fff 0%, rgba(255,255,255,.72) 22%, rgba(255,255,255,.22) 50%, transparent 76%);
 }
 
-/* D. grain — density rises with trauma.
-   screen, not overlay: overlay against a near-black page resolves to
-   near-black, so the noise would be invisible exactly where it is
-   needed. The texture is dark and gets added. */
+/* screen, not overlay: overlay against a near-black page resolves to
+   near-black, so the noise would vanish exactly where it is needed */
 .grain{
   position: fixed; inset: -50%; z-index: 62;
   pointer-events: none; opacity: 0;
@@ -515,24 +525,23 @@ body.is-merging{ cursor: none; }
   100%{ transform: translate3d(0,0,0); }
 }
 
-/* ---- intensity control ---- */
 .intensity{
   position: fixed; z-index: 80;
   right: 14px; bottom: 14px;
   display: flex; gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
-  border-radius: 3px; overflow: hidden;
+  overflow: hidden;
   font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
 }
 .intensity button{
-  background: rgba(3,2,8,.86); color: var(--ink-far);
+  background: rgba(5,5,7,.88); color: var(--ink-far);
   border: 0; padding: 7px 10px; cursor: pointer;
   font: inherit; transition: color .2s, background .2s;
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
 }
 .intensity button:hover{ color: var(--ink-dim); }
-.intensity button[aria-current="true"]{ color: var(--amber); background: rgba(255,154,60,.12); }
+.intensity button[aria-current="true"]{ color: var(--ink); background: rgba(255,255,255,.10); }
 
 /* ============================================================
    RESPONSIVE
@@ -540,7 +549,10 @@ body.is-merging{ cursor: none; }
 @media (max-width: 860px){
   .nav-links{ display: none; }
   .stats{ grid-template-columns: repeat(2, 1fr); }
-  .shock-lens{ backdrop-filter: blur(6px) saturate(1.5) contrast(1.2); }
+  .shock-lens{
+    backdrop-filter: blur(7px) grayscale(1) contrast(1.35);
+    -webkit-backdrop-filter: blur(7px) grayscale(1) contrast(1.35);
+  }
 }
 @media (max-width: 520px){
   .stats{ grid-template-columns: 1fr; }
@@ -554,9 +566,9 @@ body.is-merging{ cursor: none; }
 /* ============================================================
    MOTION SAFETY
    Vestibular disorders are real and this page is a provocation.
-   The OS preference wins by default; the on-screen control can
-   override it either way, because some users set the OS flag for
-   unrelated reasons and still want the show.
+   The OS preference picks the default; the on-screen control can
+   override it in either direction, because some people set the OS
+   flag for unrelated reasons and still want the show.
    ============================================================ */
 @media (prefers-reduced-motion: reduce){
   html{ scroll-behavior: auto; }
@@ -564,19 +576,20 @@ body.is-merging{ cursor: none; }
   .scroll-line, .grain, #trigger.charging{ animation: none; }
 }
 
-/* auto-degrade: main.js sets this when the rolling frame time
-   exceeds ~26ms. Cheapest thing to give up is filter quality. */
+/* auto-degrade: main.js sets this above ~26ms rolling frame time */
 body.perf-low .shock-lens{
-  backdrop-filter: blur(5px) saturate(1.4) contrast(1.15);
-  -webkit-backdrop-filter: blur(5px) saturate(1.4) contrast(1.15);
+  backdrop-filter: blur(6px) grayscale(1) contrast(1.25);
+  -webkit-backdrop-filter: blur(6px) grayscale(1) contrast(1.25);
 }
 body.perf-low .grain{ display: none; }
-body.perf-low [data-warp]{ filter: none; }
 
-/* intensity: off — kill every warp channel, keep the page usable */
+/* intensity: off — kill every channel, keep the page usable */
 body.int-off [data-warp]{
   transform: none !important; filter: none !important;
+  opacity: 1 !important;
   text-shadow: none !important; box-shadow: none !important;
 }
+body.int-off .frame, body.int-off .lattice{ opacity: 1 !important; filter: none !important; }
 body.int-off .shock-lens, body.int-off .shock-glow,
-body.int-off .flash, body.int-off .grain{ display: none; }
+body.int-off .flash, body.int-off .grain,
+body.int-off #rip, body.int-off #dust{ display: none; }
