@@ -1,0 +1,2559 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style>
+</head><body>
+<title>SINGULARIS — Two Black Holes Become One</title>
+<style>
+/* ============================================================
+   SINGULARIS — gravitational-wave landing page
+   ------------------------------------------------------------
+   The page is monochrome on purpose. The only colour anywhere is
+   the accretion flow in the hero canvas, so colour reads as
+   "this is the physical event" rather than as decoration.
+
+   Registered custom properties are load-bearing. --w and --tr must
+   be real <number>s or every calc() below collapses.
+   ============================================================ */
+
+@property --w      { syntax: '<number>'; inherits: true;  initial-value: 0; }
+@property --tr     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --tv     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --tx     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --ty     { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --rot    { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --tear-g { syntax: '<number>'; inherits: true;  initial-value: 0; }
+@property --shock-r{ syntax: '<length>'; inherits: false; initial-value: 0px; }
+
+:root{
+  --void:    #050507;
+  --ink:     #f2f2f4;
+  --ink-dim: #9a9aa4;
+  --ink-far: #5e5e68;
+  --line:    rgba(255,255,255,.11);
+  --line-hi: rgba(255,255,255,.30);
+
+  --shock-x: 50vw;
+  --shock-y: 60vh;
+
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+
+  /* global amplitude — main.js scales this by the intensity setting */
+  --amp: 1;
+}
+
+*, *::before, *::after{ box-sizing: border-box; }
+
+html{ scroll-behavior: smooth; }
+
+body{
+  margin: 0;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+.filter-defs{ position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+/* The spacetime lattice lives in its own fixed layer rather than on
+   <body>, so the tear can fade and blur it independently. */
+.lattice{
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right,  var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 92px 92px;
+  background-position: center top;
+  opacity: calc(1 - var(--tear-g));
+  filter: blur(calc(var(--tear-g) * 2px));
+}
+
+#shake{ position: relative; z-index: 1; }
+
+/* ============================================================
+   THE WARP AND THE TEAR
+   ------------------------------------------------------------
+   Every [data-warp] element is a wavefront sampler. main.js writes
+   two numbers per frame:
+
+     --w   signed wave amplitude, -1..1   (ripple)
+     --tr  displacement, 0..1             (thrown apart)
+     --tv  invisibility, 0..1             (faded out)
+
+   Two tear channels, not one, and that split matters. On the way out
+   they move together: the fragment is flung outward and fades. On the
+   way back, --tr collapses almost instantly while --tv is still 1, so
+   the element returns to its real position while invisible and then
+   fades up in place. The particles do the travelling. If the DOM flew
+   back too you would see it in mid-air next to its own dust, which
+   reads as a double exposure.
+
+   plus three values written once at setup:
+
+     --tx --ty  unit vector away from the epicentre
+     --rot      random rotation sign/magnitude
+
+   Only transform / filter / opacity / shadow. No layout properties,
+   ever, or the whole page reflows sixty times a second.
+   ============================================================ */
+
+[data-warp]{
+  --w: 0; --tr: 0; --tv: 0; --tx: 0; --ty: 0; --rot: 0;
+  transform:
+    translate3d(
+      calc(var(--w) * var(--amp) * 18px
+           + var(--tx) * var(--tr) * var(--tr) * var(--amp) * 300px),
+      calc(var(--w) * var(--amp) * -11px
+           + var(--ty) * var(--tr) * var(--tr) * var(--amp) * 300px),
+      0)
+    rotate(calc(var(--rot) * var(--tr) * var(--amp) * 1deg))
+    skewX(calc(var(--w) * var(--amp) * 7deg))
+    skewY(calc(var(--w) * var(--amp) * -2.5deg))
+    scale(calc(1 + var(--w) * var(--amp) * 0.075
+                 - var(--tr) * var(--amp) * 0.38));
+  filter: blur(calc(
+      max(var(--w), calc(var(--w) * -1)) * var(--amp) * 2.6px
+      + var(--tr) * var(--amp) * 5px));
+  opacity: calc(1 - var(--tv) * var(--amp));
+}
+
+[data-warp].warping{ will-change: transform, filter, opacity; }
+
+/* Monochrome misregistration instead of red/cyan fringing. Same
+   mechanism, no colour: the glyph doubles into a light and a dark
+   ghost, like a bad print run. */
+[data-warp="text"]{
+  text-shadow:
+    calc(var(--w) * var(--amp) *  9px) 0 rgba(255,255,255,.50),
+    calc(var(--w) * var(--amp) * -9px) 0 rgba(0,0,0,.92);
+}
+
+[data-warp="box"]{
+  box-shadow:
+    calc(var(--w) * var(--amp) *  11px) 0 0 rgba(255,255,255,.22),
+    calc(var(--w) * var(--amp) * -11px) 0 0 rgba(0,0,0,.85);
+}
+
+/* Structural frames can't be torn individually without their
+   children double-transforming, so they just fade with the page. */
+.frame{ opacity: calc(1 - var(--tear-g)); }
+
+/* per-glyph and per-word fragments: the unit the tear breaks along */
+.title .word,
+.frag{ display: inline-block; }
+.title .word span{ display: inline-block; transform-origin: 50% 60%; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+
+.hero{
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+#bh{
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block; z-index: 0;
+}
+
+.hero-veil{
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% 68%, transparent 30%, rgba(5,5,7,.55) 68%, rgba(5,5,7,.93) 100%),
+    linear-gradient(to bottom,
+      rgba(5,5,7,.82) 0%, rgba(5,5,7,.54) 18%, rgba(5,5,7,.20) 34%,
+      transparent 52%, transparent 84%, var(--void) 100%);
+}
+
+/* ---- nav ---- */
+.nav{
+  position: relative; z-index: 3;
+  display: flex; align-items: center; gap: 32px;
+  padding: 26px clamp(20px, 5vw, 64px);
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: .16em;
+}
+.brand{ font-weight: 600; letter-spacing: .3em; }
+.nav-links{
+  display: flex; gap: 26px; list-style: none; margin: 0 0 0 auto; padding: 0;
+}
+.nav-links a{
+  color: var(--ink-dim); text-decoration: none; transition: color .2s;
+}
+.nav-links a:hover{ color: var(--ink); }
+
+.sound-toggle{
+  display: inline-flex; align-items: center; gap: 9px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-far);
+  font: inherit; letter-spacing: .16em;
+  padding: 8px 13px; border-radius: 0;
+  cursor: pointer; transition: color .2s, border-color .2s;
+}
+.sound-toggle:hover{ color: var(--ink-dim); border-color: var(--line-hi); }
+.sound-toggle[aria-pressed="true"]{
+  color: var(--ink); border-color: var(--line-hi);
+}
+.sound-icon{
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: .4;
+}
+.sound-toggle[aria-pressed="true"] .sound-icon{
+  opacity: 1; animation: sonar 2s ease-out infinite;
+}
+@keyframes sonar{
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,.45); }
+  100% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+}
+
+/* ---- hero copy ---- */
+.hero-inner{
+  position: relative; z-index: 3;
+  margin: clamp(12px, 3vh, 40px) auto auto;
+  width: 100%; max-width: 1000px;
+  padding: 0 clamp(20px, 5vw, 64px);
+  text-align: center;
+}
+
+.eyebrow{
+  display: inline-flex; align-items: center;
+  flex-wrap: wrap; justify-content: center; gap: 4px 10px;
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .22em; color: var(--ink-far);
+  margin: 0 0 26px;
+}
+.pulse-dot{
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--ink-dim); flex: 0 0 auto;
+  animation: sonar 2.4s ease-out infinite;
+}
+
+.title{
+  margin: 0 0 22px;
+  font-size: clamp(2.5rem, 7.4vw, 5.4rem);
+  line-height: .96;
+  letter-spacing: -.038em;
+  font-weight: 660;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.lede{
+  max-width: 54ch; margin: 0 auto 4px;
+  color: var(--ink-dim); font-size: clamp(.95rem, 1.5vw, 1.06rem);
+}
+
+.cta-row{
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+  margin-top: 26px;
+}
+
+/* ---- buttons: flat, bordered, no glow, no gradient ---- */
+.btn{
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 16px 30px;
+  font-family: var(--mono); font-size: 11.5px;
+  letter-spacing: .2em; font-weight: 500;
+  text-decoration: none; cursor: pointer;
+  border-radius: 0;
+  border: 1px solid transparent;
+  transition: background .18s, color .18s, border-color .18s, transform .12s;
+}
+.btn.compact{ padding: 14px 24px; }
+.btn:active{ transform: translateY(1px); }
+
+.btn-primary{
+  color: #08080a;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.btn-primary:hover{ background: #fff; }
+
+.btn-ghost{
+  color: var(--ink-dim);
+  border-color: var(--line-hi);
+  background: rgba(5,5,7,.55);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.btn-ghost:hover{ color: var(--ink); border-color: var(--ink-dim); }
+
+.btn:focus-visible, .field:focus-visible,
+.nav-links a:focus-visible, .sound-toggle:focus-visible,
+.intensity button:focus-visible{
+  outline: 2px solid var(--ink); outline-offset: 3px;
+}
+
+#trigger.charging{
+  animation: charge-shudder .09s steps(2) infinite;
+  pointer-events: none;
+}
+@keyframes charge-shudder{
+  0%   { transform: translate3d(-.6px, .4px, 0); }
+  100% { transform: translate3d(.6px, -.4px, 0); }
+}
+#trigger[aria-disabled="true"]{ pointer-events: none; }
+
+.hint{
+  display: inline-block;
+  margin: 16px 0 0;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  background: rgba(5,5,7,.6);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: .14em; color: var(--ink-dim);
+  transition: opacity .5s;
+  /* Same specificity as [data-warp="text"] and declared later, so it
+     would silently drop the misregistration — restated here. */
+  text-shadow:
+    0 1px 10px rgba(5,5,7,.95),
+    calc(var(--w) * var(--amp) *  9px) 0 rgba(255,255,255,.50),
+    calc(var(--w) * var(--amp) * -9px) 0 rgba(0,0,0,.92);
+}
+
+.scroll-cue{
+  position: relative; z-index: 3;
+  display: grid; place-items: center; padding-bottom: 30px;
+}
+.scroll-line{
+  width: 1px; height: 54px;
+  background: linear-gradient(to bottom, transparent, var(--ink-far));
+  transform-origin: top;
+  animation: cue 2.6s cubic-bezier(.7,0,.3,1) infinite;
+}
+@keyframes cue{
+  0%,100%{ transform: scaleY(.25); opacity: .2; }
+  45%    { transform: scaleY(1);   opacity: .9; }
+}
+
+/* ============================================================
+   PAGE BODY
+   ============================================================ */
+
+.stats{
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--line);
+  border-block: 1px solid var(--line);
+}
+.stat{
+  background: var(--void);
+  padding: 40px clamp(16px, 3vw, 34px);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.stat-num{
+  font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1;
+  font-weight: 300; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.stat-lbl{
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .16em; color: var(--ink-far);
+}
+
+.block{
+  padding: clamp(80px, 13vh, 160px) clamp(20px, 5vw, 64px);
+  max-width: 1180px; margin-inline: auto;
+}
+.block.narrow{ max-width: 760px; }
+
+.kicker{
+  font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: .22em; color: var(--ink-far);
+  margin: 0 0 18px;
+}
+
+.h2{
+  font-size: clamp(1.8rem, 4.4vw, 3.2rem);
+  line-height: 1.06; letter-spacing: -.032em; font-weight: 600;
+  margin: 0 0 44px; text-wrap: balance;
+}
+
+.cards{
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.card{
+  background: var(--void);
+  padding: 36px 30px 40px;
+  transition: background .3s;
+}
+.card:hover{ background: #0b0b0e; }
+.card-idx{
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .2em; color: var(--ink-far);
+}
+.card h3{
+  margin: 16px 0 12px;
+  font-size: 1.26rem; font-weight: 600; letter-spacing: -.015em;
+}
+.card p{ margin: 0; color: var(--ink-dim); font-size: .94rem; }
+
+.body{
+  color: var(--ink-dim);
+  font-size: clamp(1rem, 1.5vw, 1.1rem);
+  margin: 0 0 26px;
+}
+.body.pull{
+  color: var(--ink);
+  font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+  line-height: 1.34; letter-spacing: -.02em;
+  border-left: 1px solid var(--line-hi);
+  padding: 6px 0 6px 26px;
+  margin: 42px 0;
+}
+
+.signup{ display: flex; gap: 10px; flex-wrap: wrap; margin: 34px 0 14px; }
+.field{
+  flex: 1 1 260px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: inherit; font-size: .95rem;
+  padding: 15px 18px; border-radius: 0;
+  transition: border-color .2s;
+}
+.field::placeholder{ color: var(--ink-far); }
+.field:focus{ outline: none; border-color: var(--ink-dim); }
+.field.invalid{ border-color: var(--ink); border-style: dashed; }
+
+.fineprint{
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .14em; color: var(--ink-far); margin: 0;
+}
+
+.foot{
+  display: flex; flex-wrap: wrap; gap: 14px;
+  justify-content: space-between;
+  padding: 40px clamp(20px, 5vw, 64px) 60px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .14em; color: var(--ink-far);
+}
+
+/* ============================================================
+   OVERLAYS
+   Stack, bottom to top:
+     55 rip      opaque wedges — must cover page content
+     60 lens     masked backdrop-filter ring
+     61 glow     light of the wavefront
+     62 grain
+     66 dust     particle reassembly
+     70 flash
+     80 controls
+   ============================================================ */
+
+#rip, #dust{
+  position: fixed; inset: 0; pointer-events: none;
+  width: 100%; height: 100%;
+}
+#rip{ z-index: 55; }
+#dust{ z-index: 66; }
+
+/* masked backdrop-filter ring: distorts live DOM with no repaint of
+   it. Grayscale, not hue-rotate — this page has no hue to rotate. */
+.shock-lens{
+  position: fixed; inset: 0; z-index: 60;
+  pointer-events: none; opacity: 0;
+  backdrop-filter: blur(12px) grayscale(1) contrast(1.6) brightness(1.25);
+  -webkit-backdrop-filter: blur(12px) grayscale(1) contrast(1.6) brightness(1.25);
+  --shock-r: 0px;
+  -webkit-mask-image: radial-gradient(circle at var(--shock-x) var(--shock-y),
+      transparent calc(var(--shock-r) - 118px),
+      #000        calc(var(--shock-r) - 40px),
+      #000        var(--shock-r),
+      transparent calc(var(--shock-r) + 66px));
+  mask-image: radial-gradient(circle at var(--shock-x) var(--shock-y),
+      transparent calc(var(--shock-r) - 118px),
+      #000        calc(var(--shock-r) - 40px),
+      #000        var(--shock-r),
+      transparent calc(var(--shock-r) + 66px));
+}
+
+.shock-glow{
+  position: fixed; inset: 0; z-index: 61;
+  pointer-events: none; opacity: 0;
+  mix-blend-mode: screen;
+  --shock-r: 0px;
+  background: radial-gradient(circle at var(--shock-x) var(--shock-y),
+      transparent calc(var(--shock-r) - 90px),
+      rgba(255,255,255,.10) calc(var(--shock-r) - 34px),
+      rgba(255,255,255,.42) calc(var(--shock-r) - 7px),
+      rgba(255,255,255,.95) var(--shock-r),
+      rgba(255,255,255,.16) calc(var(--shock-r) + 26px),
+      transparent calc(var(--shock-r) + 74px));
+}
+
+.flash{
+  position: fixed; inset: 0; z-index: 70;
+  pointer-events: none; opacity: 0;
+  mix-blend-mode: screen;
+  background: radial-gradient(circle at var(--shock-x) var(--shock-y),
+      #fff 0%, rgba(255,255,255,.72) 22%, rgba(255,255,255,.22) 50%, transparent 76%);
+}
+
+/* screen, not overlay: overlay against a near-black page resolves to
+   near-black, so the noise would vanish exactly where it is needed */
+.grain{
+  position: fixed; inset: -50%; z-index: 62;
+  pointer-events: none; opacity: 0;
+  mix-blend-mode: screen;
+  background-image: var(--grain-src);
+  background-size: 180px 180px;
+  animation: grain-drift .7s steps(6) infinite;
+}
+@keyframes grain-drift{
+  0%  { transform: translate3d(0,0,0); }
+  20% { transform: translate3d(-3%, 2%, 0); }
+  40% { transform: translate3d(2%, -4%, 0); }
+  60% { transform: translate3d(-4%, -2%, 0); }
+  80% { transform: translate3d(3%, 3%, 0); }
+  100%{ transform: translate3d(0,0,0); }
+}
+
+.intensity{
+  position: fixed; z-index: 80;
+  right: 14px; bottom: 14px;
+  display: flex; gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
+}
+.intensity button{
+  background: rgba(5,5,7,.88); color: var(--ink-far);
+  border: 0; padding: 7px 10px; cursor: pointer;
+  font: inherit; transition: color .2s, background .2s;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.intensity button:hover{ color: var(--ink-dim); }
+.intensity button[aria-current="true"]{ color: var(--ink); background: rgba(255,255,255,.10); }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 860px){
+  .nav-links{ display: none; }
+  .stats{ grid-template-columns: repeat(2, 1fr); }
+  .shock-lens{
+    backdrop-filter: blur(7px) grayscale(1) contrast(1.35);
+    -webkit-backdrop-filter: blur(7px) grayscale(1) contrast(1.35);
+  }
+}
+@media (max-width: 520px){
+  .stats{ grid-template-columns: 1fr; }
+  .cta-row{ flex-direction: column; }
+  .btn{ width: 100%; }
+  .body.pull{ padding-left: 18px; }
+  .eyebrow{ font-size: 9.5px; letter-spacing: .14em; margin-bottom: 20px; }
+  .hint{ font-size: 9.5px; letter-spacing: .1em; }
+}
+
+/* ============================================================
+   MOTION SAFETY
+   Vestibular disorders are real and this page is a provocation.
+   The OS preference picks the default; the on-screen control can
+   override it in either direction, because some people set the OS
+   flag for unrelated reasons and still want the show.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior: auto; }
+  .pulse-dot, .sound-toggle[aria-pressed="true"] .sound-icon,
+  .scroll-line, .grain, #trigger.charging{ animation: none; }
+}
+
+/* auto-degrade: main.js sets this above ~26ms rolling frame time */
+body.perf-low .shock-lens{
+  backdrop-filter: blur(6px) grayscale(1) contrast(1.25);
+  -webkit-backdrop-filter: blur(6px) grayscale(1) contrast(1.25);
+}
+body.perf-low .grain{ display: none; }
+
+/* intensity: off — kill every channel, keep the page usable */
+body.int-off [data-warp]{
+  transform: none !important; filter: none !important;
+  opacity: 1 !important;
+  text-shadow: none !important; box-shadow: none !important;
+}
+body.int-off .frame, body.int-off .lattice{ opacity: 1 !important; filter: none !important; }
+body.int-off .shock-lens, body.int-off .shock-glow,
+body.int-off .flash, body.int-off .grain,
+body.int-off #rip, body.int-off #dust{ display: none; }
+
+</style>
+<!-- ============================================================
+     SVG displacement filter — hero subtree only, one-shot.
+     JS animates scale/baseFrequency during the pre-merge tremor.
+     ============================================================ -->
+<svg class="filter-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="gw-displace" x="-15%" y="-15%" width="130%" height="130%"
+            color-interpolation-filters="sRGB">
+      <feTurbulence id="gw-turb" type="fractalNoise"
+                    baseFrequency="0.004 0.012" numOctaves="2" seed="7"
+                    result="noise"/>
+      <feDisplacementMap id="gw-disp" in="SourceGraphic" in2="noise"
+                         scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- the spacetime lattice, in its own layer so the tear can eat it -->
+<div class="lattice" aria-hidden="true"></div>
+
+<!-- shake wrapper: ONLY ever gets translate3d/rotate, so it can never
+     fight the per-element warp and tear transforms. -->
+<div id="shake">
+<div id="page">
+
+  <!-- ============================ HERO ============================ -->
+  <header class="hero" id="hero">
+    <canvas id="bh" aria-hidden="true"></canvas>
+    <div class="hero-veil" aria-hidden="true"></div>
+
+    <nav class="nav">
+      <span class="brand" data-warp="text">SINGULARIS</span>
+      <ul class="nav-links">
+        <li><a href="#effects" data-warp="text">Observatory</a></li>
+        <li><a href="#log" data-warp="text">Research</a></li>
+        <li><a href="#signal" data-warp="text">Archive</a></li>
+      </ul>
+      <button class="sound-toggle" id="soundToggle" aria-pressed="false"
+              title="Toggle sound">
+        <span class="sound-icon" aria-hidden="true"></span>
+        <span class="sound-label">SOUND OFF</span>
+      </button>
+    </nav>
+
+    <div class="hero-inner">
+      <p class="eyebrow" data-warp="text">
+        <span class="pulse-dot" aria-hidden="true"></span>
+        GW260730 &middot; 62 M<sub>&#9737;</sub> &middot; 4.1 BILLION LIGHT YEARS
+      </p>
+
+      <h1 class="title" id="title" aria-label="Two black holes become one">
+        <!-- filled by JS: one span per glyph, each its own tear fragment -->
+      </h1>
+
+      <p class="lede" data-split="word">
+        For a fifth of a second, three solar masses stopped being matter and
+        became a wave. It crossed four billion years of vacuum, passed through
+        the Earth, and tore this page in half.
+      </p>
+
+      <p class="hint" id="hint" data-warp="text">
+        Sound on. Headphones better. The page does not survive it.
+      </p>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" id="trigger" data-warp="box">
+          INITIATE MERGER
+        </button>
+        <a class="btn btn-ghost" href="#log" data-warp="box">READ THE PAPER</a>
+      </div>
+    </div>
+
+    <div class="scroll-cue" aria-hidden="true">
+      <span class="scroll-line"></span>
+    </div>
+  </header>
+
+  <!-- ============================ STATS ============================ -->
+  <section class="stats frame" aria-label="Merger parameters">
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-split="word">62</span>
+      <span class="stat-lbl" data-warp="text">Final mass / M<sub>&#9737;</sub></span>
+    </div>
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-split="word">3.0</span>
+      <span class="stat-lbl" data-warp="text">Radiated as gravity</span>
+    </div>
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-split="word">250</span>
+      <span class="stat-lbl" data-warp="text">Peak frequency / Hz</span>
+    </div>
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-split="word">0.2</span>
+      <span class="stat-lbl" data-warp="text">Duration / s</span>
+    </div>
+  </section>
+
+  <!-- ============================ EFFECTS ============================ -->
+  <section class="block" id="effects">
+    <p class="kicker" data-warp="text">01 &mdash; Propagation</p>
+    <h2 class="h2" data-split="word">What the wave does to everything it touches</h2>
+
+    <div class="cards frame">
+      <article class="card" data-warp="box">
+        <span class="card-idx" data-warp="text">i</span>
+        <h3 data-split="word">Strain</h3>
+        <p data-warp="text">Space itself lengthens along one axis and shortens
+        along the other, then swaps, at the frequency of the orbit. Nothing
+        moves through space. Space moves.</p>
+      </article>
+      <article class="card" data-warp="box">
+        <span class="card-idx" data-warp="text">ii</span>
+        <h3 data-split="word">Chirp</h3>
+        <p data-warp="text">As the orbit tightens, frequency climbs as
+        <em>(t<sub>c</sub>&minus;t)</em><sup>&minus;3/8</sup>. The same curve
+        drives the pitch you hear and the spin you see. One function, both senses.</p>
+      </article>
+      <article class="card" data-warp="box">
+        <span class="card-idx" data-warp="text">iii</span>
+        <h3 data-split="word">Ringdown</h3>
+        <p data-warp="text">The remnant is briefly the wrong shape. It rings
+        like a struck bell at its quasinormal modes, sheds the asymmetry, and
+        settles into perfect Kerr silence.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================ LOG ============================ -->
+  <section class="block narrow" id="log">
+    <p class="kicker" data-warp="text">02 &mdash; Detection log</p>
+    <h2 class="h2" data-split="word">0.2 seconds, four billion years late</h2>
+
+    <p class="body" data-warp="text">
+      The two bodies had been circling each other for an age, radiating orbital
+      energy away as gravitational waves and falling inward to pay for it. That
+      is the whole story: a slow leak, then a fast one, then none.
+    </p>
+    <p class="body" data-warp="text">
+      In the final second the separation collapsed from a few hundred kilometres
+      to nothing. Orbital velocity reached over half the speed of light. The
+      accretion flow &mdash; the hot, magnetised gas you can see above &mdash;
+      was sheared into arms, torn between two wells that were about to become one.
+    </p>
+    <p class="body pull" data-warp="text">
+      At peak, the merger radiated more power than every star in the observable
+      universe combined. It emitted almost no light.
+    </p>
+    <p class="body" data-warp="text">
+      What arrived here was a strain of 10<sup>&minus;21</sup>. Over the four
+      kilometre arm of an interferometer that is a displacement one thousandth
+      the width of a proton. We measured it. Twice, on two continents, seven
+      milliseconds apart.
+    </p>
+  </section>
+
+  <!-- ============================ SIGNAL ============================ -->
+  <section class="block narrow" id="signal">
+    <p class="kicker" data-warp="text">03 &mdash; Subscribe</p>
+    <h2 class="h2" data-split="word">Get the next one</h2>
+    <p class="body" data-warp="text">
+      Roughly one detection a week now. We send a short note when something
+      unusual comes through &mdash; an unexpected mass gap, a neutron star, an
+      event with an optical counterpart.
+    </p>
+    <form class="signup" id="signup" novalidate>
+      <label class="sr-only" for="email">Email address</label>
+      <input class="field" id="email" name="email" type="email"
+             placeholder="you@observatory.org" data-warp="box" required>
+      <button class="btn btn-primary compact" type="submit" data-warp="box">
+        NOTIFY ME
+      </button>
+    </form>
+    <p class="fineprint" id="formNote" data-warp="text" role="status">
+      No tracking. Unsubscribe in one click.
+    </p>
+  </section>
+
+  <footer class="foot">
+    <span data-warp="text">SINGULARIS &mdash; Gravitational Design Lab</span>
+    <span data-warp="text">Rendered live &middot; no video, no audio files</span>
+  </footer>
+
+</div><!-- /#page -->
+</div><!-- /#shake -->
+
+<!-- ============================================================
+     Overlays. Outside #shake so the shake never double-transforms
+     them. See the z-index ladder in style.css.
+     ============================================================ -->
+<canvas id="rip" aria-hidden="true"></canvas>
+<div class="shock-lens" id="shockLens" aria-hidden="true"></div>
+<div class="shock-glow" id="shockGlow" aria-hidden="true"></div>
+<div class="grain" id="grain" aria-hidden="true"></div>
+<canvas id="dust" aria-hidden="true"></canvas>
+<div class="flash" id="flash" aria-hidden="true"></div>
+
+<div class="intensity" role="group" aria-label="Motion intensity">
+  <button data-int="full">FULL</button>
+  <button data-int="reduced">REDUCED</button>
+  <button data-int="off">OFF</button>
+</div>
+
+<script>
+/* ===== assets/blackhole.js ===== */
+/* ============================================================
+   blackhole.js — binary black hole renderer (WebGL1, no deps)
+   ------------------------------------------------------------
+   Not a ray-marched Schwarzschild metric. That costs 200+ samples
+   per pixel and buys nothing here, because the reference look is
+   not "stars bending" — it is hot magnetised gas in an inferno
+   colormap. So:
+
+     - gas field  : domain-warped value-noise FBM sampled in
+                    (theta, log r) around each hole
+     - spiral arms: emerge for free from Keplerian shear, i.e.
+                    advection phase scaled by r^-1.25, because
+                    inner gas laps outer gas
+     - lensing    : analytic deflection (~1/b) + frame-drag
+                    rotation (~1/r), applied to the sample coords
+     - horizons   : hard smoothstep discs, drawn last
+     - camera     : orbital plane flattened by uTilt, animated
+                    edge-on -> face-on over the inspiral
+
+   Everything the timeline needs to drive is a uniform. main.js
+   owns the clock; this file owns pixels.
+   ============================================================ */
+
+window.BlackHole = (function () {
+  'use strict';
+
+  const VERT = `
+    attribute vec2 aPos;
+    void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }
+  `;
+
+  const FRAG = `
+  precision highp float;
+
+  uniform vec2  uRes;
+  uniform float uT;      // gas evolution time (freezable)
+  uniform float uSpin;   // integrated advection phase
+  uniform float uAngle;  // orbital phase
+  uniform float uSep;    // separation, world units
+  uniform float uTilt;   // 0.12 edge-on .. 1.0 face-on
+  uniform float uMerge;  // 0 = binary, 1 = single remnant
+  uniform float uFlash;  // merge flash
+  uniform float uShock;  // shock radius, world units (0 = none)
+  uniform float uWobble; // ringdown quasinormal wobble, -1..1
+  uniform float uZoom;
+  uniform float uMass;   // mass ratio m2/m1
+  uniform float uGlow;
+
+  /* ---------- inferno colormap (polynomial fit) ---------- */
+  vec3 inferno(float t){
+    t = clamp(t, 0.0, 1.0);
+    vec3 c0 = vec3( 0.00021894,  0.00165100, -0.01948090);
+    vec3 c1 = vec3( 0.10651342,  0.56395644,  3.93271239);
+    vec3 c2 = vec3(11.60249308, -3.97285397, -15.94239411);
+    vec3 c3 = vec3(-41.70399613, 17.43639888, 44.35414520);
+    vec3 c4 = vec3(77.16293570, -33.40235894, -81.80730926);
+    vec3 c5 = vec3(-71.31942824, 32.62606426, 73.20951986);
+    vec3 c6 = vec3(25.13112622, -12.24266895, -23.07032500);
+    return max(c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6))))), vec3(0.0));
+  }
+
+  /* the reference frames have deep navy in the diffuse outskirts.
+     inferno's low end is near-black, so lift it toward blue. */
+  vec3 palette(float d){
+    vec3 c = inferno(d);
+    float b = smoothstep(0.44, 0.0, d);
+    c = mix(c, vec3(0.055, 0.105, 0.50) * (d * 3.6), b * 0.88);
+    return c;
+  }
+
+  /* ---------- value noise + FBM (unrolled: GLSL ES 1.0 safe) ---------- */
+  float hash31(vec3 p){
+    p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yzx + 33.33);
+    return fract((p.x + p.y) * p.z);
+  }
+  float vn(vec3 x){
+    vec3 i = floor(x), f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = mix(mix(hash31(i+vec3(0,0,0)), hash31(i+vec3(1,0,0)), f.x),
+                  mix(hash31(i+vec3(0,1,0)), hash31(i+vec3(1,1,0)), f.x), f.y);
+    float b = mix(mix(hash31(i+vec3(0,0,1)), hash31(i+vec3(1,0,1)), f.x),
+                  mix(hash31(i+vec3(0,1,1)), hash31(i+vec3(1,1,1)), f.x), f.y);
+    return mix(a, b, f.z);
+  }
+  float fbm2(vec3 p){
+    float s = 0.5 * vn(p); p *= 2.03;
+    return s + 0.25 * vn(p);
+  }
+  float fbm4(vec3 p){
+    float s = 0.5000 * vn(p); p *= 2.03;
+    s     += 0.2500 * vn(p);  p *= 2.01;
+    s     += 0.1250 * vn(p);  p *= 2.02;
+    s     += 0.0625 * vn(p);
+    return s;
+  }
+
+  const float RS = 0.042;   // flow scale per unit mass (~ISCO)
+  const float RH = 0.024;   // horizon radius per unit mass
+  /* RH < RS on purpose: the inner edge of a real accretion torus is
+     the ISCO at ~3x the horizon radius, so the black disc has to be
+     noticeably smaller than the hole in the gas. */
+
+  /* ---------- accretion torus around one hole ----------
+     q must already be circularised (y un-flattened by tilt).
+     The hot part is an ANNULUS, not a filled core — in the
+     reference every bright vortex has a hard black dot in it. */
+  float diskField(vec2 q, float m, float sgn){
+    float rs = RS * m;
+    float r  = max(length(q), 1e-4);
+    float th = atan(q.y, q.x);
+
+    /* Keplerian shear. This one line is what turns blobs into
+       arms: angular advection falls off as r^-1.15, so the inner
+       flow laps the outer flow and winds the noise into spirals. */
+    float adv = sgn * uSpin * 0.50 * pow(max(r, rs * 1.8), -1.15);
+
+    float lr = log(r * 9.0 + 0.85);
+    vec2  w  = vec2(cos(th + adv), sin(th + adv));
+    vec3  sp = vec3(w * (1.0 + lr * 1.5), lr * 0.6 + uT * 0.05);
+
+    /* domain warp, then threshold. The threshold is what separates
+       filaments from fog: below it the gas is simply not there. */
+    float turb = fbm4(sp * 2.6 + fbm2(sp * 1.15) * 1.7);
+    turb = max(turb - 0.26, 0.0) * 1.45;
+
+    /* Sampling in (theta, log r) is what produces spirals, but it
+       also produces perfectly regular concentric shells, because the
+       noise lattice repeats every unit of log r. A cartesian
+       modulator has no radial period, so it breaks them up. */
+    turb *= 0.66 + 0.62 * fbm2(vec3(q * 6.5, uT * 0.05));
+
+    /* sqrt(m), not m: with a linear scaling the lighter body's torus
+       collapses to nothing and you only ever see one vortex. */
+    float k = sqrt(m);
+    float body = exp(-max(r - rs * 2.2, 0.0) * (5.0 / k));
+    float ring = 0.85 * exp(-abs(r - rs * 2.20) * (24.0 / k));
+    return body * (0.11 + turb * 1.00) + ring * (0.20 + turb * 0.70);
+  }
+
+  /* thin bright annulus right at the photon sphere */
+  float photonRing(vec2 q, float m){
+    return exp(-abs(length(q) - RH * m * 1.5) * (230.0 / sqrt(m))) * 0.80;
+  }
+
+  /* ---------- shared tidal arms wrapping the whole system ----------
+     Deliberately NOT diskField with a big mass: no photon ring, no
+     torus, no horizon. Just thresholded turbulence on a broad
+     radial envelope, which is what fills the reference frames. */
+  float armField(vec2 q, float sgn){
+    float r  = max(length(q), 1e-4);
+    float th = atan(q.y, q.x);
+    float adv = sgn * uSpin * 0.15 * pow(max(r, 0.15), -0.9);
+    float lr = log(r * 2.3 + 0.7);
+    vec2  w  = vec2(cos(th + adv), sin(th + adv));
+    vec3  sp = vec3(w * (1.0 + lr * 1.05), lr * 0.62 + uT * 0.03);
+
+    float turb = fbm4(sp * 1.75 + fbm2(sp * 0.85) * 1.60);
+    turb = max(turb - 0.395, 0.0) * 1.95;
+    turb *= 0.60 + 0.70 * fbm2(vec3(q * 2.6, uT * 0.04));
+
+    /* a shell that peaks OUTSIDE the binary, so the arms frame the
+       two vortices instead of drowning them */
+    float env = exp(-max(r - 0.32, 0.0) * 1.95) * smoothstep(0.07, 0.30, r);
+    return env * turb;
+  }
+
+  float horizon(vec2 q, float m){
+    float rh = RH * m;
+    return smoothstep(rh * 0.93, rh * 1.06, length(q));
+  }
+
+  /* ---------- analytic lensing: deflect + drag ----------
+     Both terms are clamped. Unclamped 1/r^2 sends sample coords to
+     infinity next to the horizon, which reads as a hard black rim
+     with garbage inside it. */
+  vec2 lens(vec2 p, vec2 c, float m, float tilt){
+    vec2 d = p - c;
+    d.y /= tilt;
+    float r2 = dot(d, d) + 0.0030;
+    float r  = sqrt(r2);
+    float k = min(m * 0.0030 / r2, 0.085);   // radial deflection ~ 1/b
+    float a = min(m * 0.0150 / r,  0.85);    // frame-drag swirl ~ 1/r
+    float ca = cos(a), sa = sin(a);
+    vec2 rot = vec2(d.x * ca - d.y * sa, d.x * sa + d.y * ca);
+    rot -= (d / r) * k;
+    rot.y *= tilt;
+    return c + rot;
+  }
+
+  void main(){
+    /* World units are normally normalised by height, but on a portrait
+       phone a separation of 0.42 height-units is wider than the screen
+       and both holes leave the frame. Normalising by whichever axis is
+       tighter keeps the binary framed at every aspect ratio. main.js
+       repeats this to place the CSS shock epicentre. */
+    float unit = min(uRes.x / 0.86, uRes.y);
+    vec2 p = (gl_FragCoord.xy - 0.5 * uRes) / unit;
+    p /= max(uZoom, 0.05);
+    /* sit the binary low in the frame: the copy owns the upper half,
+       the gas owns the lower half, and the CTA sits on the boundary
+       where it catches the light. main.js mirrors this offset for
+       the CSS shock epicentre. */
+    p.y += 0.27;
+
+    /* ringdown: the remnant is briefly the wrong shape */
+    p += vec2(p.x, -p.y) * uWobble * 0.055;
+
+    /* shockwave displaces the field radially as it passes */
+    float rr = max(length(p), 1e-4);
+    float band = 0.0;
+    if (uShock > 0.001) {
+      band = 1.0 - smoothstep(0.0, 0.11, abs(rr - uShock));
+      p -= (p / rr) * band * 0.055;
+    }
+
+    float tilt = max(uTilt, 0.12);
+    float mg   = uMerge;
+
+    /* barycentric positions: lighter body swings wider */
+    vec2 dir = vec2(cos(uAngle), sin(uAngle) * tilt);
+    float fA = uMass / (1.0 + uMass);
+    float fB = 1.0   / (1.0 + uMass);
+    vec2 cA = mix( dir * uSep * fA, vec2(0.0), mg);
+    vec2 cB = mix(-dir * uSep * fB, vec2(0.0), mg);
+
+    float mA = mix(1.0,   1.42, mg);   // remnant: sum minus what was radiated
+    float mB = mix(uMass, 0.30, mg);
+    float wB = 1.0 - smoothstep(0.55, 1.0, mg);
+
+    /* lensed sample coords for the gas... */
+    vec2 pw = lens(lens(p, cA, mA, tilt), cB, mB * wB, tilt);
+    vec2 qA = pw - cA; qA.y /= tilt;
+    vec2 qB = pw - cB; qB.y /= tilt;
+
+    /* ...but UNLENSED coords for the horizons. A lensed shadow is
+       more correct and much less stable; a clean disc reads better
+       and never flickers. */
+    vec2 hA = p - cA; hA.y /= tilt;
+    vec2 hB = p - cB; hB.y /= tilt;
+
+    /* Soft max, not a sum. In the last half second the two tori
+       overlap almost completely, and adding them clips the colormap
+       to a flat cream disc. This keeps the brighter flow dominant
+       and lets the other one only add to it. */
+    float dA = diskField(qA, mA,  1.0);
+    float dB = diskField(qB, mB, -1.0) * wB;
+    float d  = max(dA, dB) + min(dA, dB) * 0.40;
+
+    vec2 qe = pw; qe.y /= tilt;
+    d += armField(qe, 1.0) * (0.62 + 0.45 * mg);
+
+    d += photonRing(hA, mA) + photonRing(hB, mB) * wB;
+
+    /* everything sits in vacuum: kill density toward the edges */
+    d *= smoothstep(1.30, 0.26, length(p * vec2(0.86, 1.0)));
+    d *= uGlow;
+
+    /* channel-split the colormap lookup while the wave is passing */
+    float ab = band * 0.18 + uFlash * 0.10;
+    vec3 col = vec3(palette(d * (1.0 + ab)).r,
+                    palette(d).g,
+                    palette(d * (1.0 - ab)).b);
+
+    /* horizons last, so nothing can write light inside them */
+    col *= horizon(hA, mA);
+    col *= mix(1.0, horizon(hB, mB), wB);
+
+    /* merge flash + wavefront light */
+    col += vec3(1.0, 0.87, 0.64) * uFlash * uFlash * 1.35;
+    col += palette(0.86) * band * 0.34;
+
+    /* vignette, soft knee, dither */
+    float vig = smoothstep(1.50, 0.30, length(p * vec2(0.84, 1.0)));
+    col *= 0.16 + 0.84 * vig;
+    col = col / (col + 1.00) * 1.24;
+    col += (hash31(vec3(gl_FragCoord.xy, uT)) - 0.5) * 0.018;
+
+    gl_FragColor = vec4(max(col, 0.0), 1.0);
+  }
+  `;
+
+  function compile(gl, type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      throw new Error(gl.getShaderInfoLog(s) || 'shader compile failed');
+    }
+    return s;
+  }
+
+  function create(canvas) {
+    const opts = {
+      alpha: false, antialias: false, depth: false, stencil: false,
+      powerPreference: 'high-performance', preserveDrawingBuffer: false
+    };
+    const gl = canvas.getContext('webgl', opts) ||
+               canvas.getContext('experimental-webgl', opts);
+    if (!gl) return null;
+
+    let prog;
+    try {
+      prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
+      gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(prog) || 'link failed');
+      }
+    } catch (e) {
+      console.warn('[blackhole] ' + e.message);
+      return null;
+    }
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'aPos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    const U = {};
+    ['uRes','uT','uSpin','uAngle','uSep','uTilt','uMerge',
+     'uFlash','uShock','uWobble','uZoom','uMass','uGlow']
+      .forEach(n => { U[n] = gl.getUniformLocation(prog, n); });
+
+    /* uniform state — main.js mutates this object directly */
+    const state = {
+      t: 0, spin: 0, angle: 0, sep: 0.42, tilt: 0.45,
+      merge: 0, flash: 0, shock: 0, wobble: 0,
+      zoom: 1, mass: 0.86, glow: 1
+    };
+
+    let dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    let w = 0, h = 0;
+
+    function resize() {
+      const r = canvas.getBoundingClientRect();
+      const nw = Math.max(1, Math.round(r.width  * dpr));
+      const nh = Math.max(1, Math.round(r.height * dpr));
+      if (nw === w && nh === h) return;
+      w = canvas.width = nw;
+      h = canvas.height = nh;
+      gl.viewport(0, 0, w, h);
+    }
+
+    function setDpr(v) {
+      dpr = Math.max(0.5, Math.min(v, 2));
+      w = h = 0;
+      resize();
+    }
+
+    function draw() {
+      resize();
+      gl.uniform2f(U.uRes, w, h);
+      gl.uniform1f(U.uT,      state.t);
+      gl.uniform1f(U.uSpin,   state.spin);
+      gl.uniform1f(U.uAngle,  state.angle);
+      gl.uniform1f(U.uSep,    state.sep);
+      gl.uniform1f(U.uTilt,   state.tilt);
+      gl.uniform1f(U.uMerge,  state.merge);
+      gl.uniform1f(U.uFlash,  state.flash);
+      gl.uniform1f(U.uShock,  state.shock);
+      gl.uniform1f(U.uWobble, state.wobble);
+      gl.uniform1f(U.uZoom,   state.zoom);
+      gl.uniform1f(U.uMass,   state.mass);
+      gl.uniform1f(U.uGlow,   state.glow);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    window.addEventListener('resize', resize, { passive: true });
+    resize();
+
+    return { state, draw, setDpr, getDpr: () => dpr, gl };
+  }
+
+  return { create };
+})();
+
+
+/* ===== assets/audio.js ===== */
+/* ============================================================
+   audio.js — procedural gravitational-wave audio (Web Audio API)
+   ------------------------------------------------------------
+   No audio files. Everything is synthesised, which is both smaller
+   than an mp3 and more accurate: the pitch follows the same
+   post-Newtonian chirp law that drives the orbit on screen, so
+   sound and picture cannot drift apart by construction.
+
+     f(t) ∝ (t_c − t)^(−3/8)
+
+   Two chirp layers on purpose. The physical one runs 35 → 260 Hz,
+   which is real but nearly inaudible on laptop speakers. The
+   audible one is the same curve shifted up ~4x, which is exactly
+   what LIGO does to make its detections playable.
+
+   Autoplay policy: nothing can start without a user gesture, so
+   the whole engine stays uninitialised until start() is called
+   from a click. Not a limitation to work around — the page is
+   built so the merger IS the click.
+   ============================================================ */
+
+/* Single source of truth for the chirp, shared with main.js.
+   x is the fraction of the inspiral elapsed; the return value is the
+   frequency / orbital-rate multiplier over its starting value.
+
+   The sqrt() is a deliberate time-warp, not a mistake. The real
+   (t_c - t)^(-3/8) divergence puts ~90% of its action in the last 2%
+   of the inspiral: on screen that is six seconds of almost nothing
+   followed by one frame of everything, and in the ear it is a click
+   rather than a chirp. Warping the input spreads the sweep across
+   the whole timeline without changing the shape of the law. Both the
+   audio curve and the orbit read from here, so they cannot drift. */
+window.GWChirp = function (x) {
+  x = Math.max(0, Math.min(1, x));
+  const u = Math.sqrt(x);
+  return Math.min(Math.pow(1 - u * 0.997, -0.375), 7.4);
+};
+
+window.GWAudio = (function () {
+  'use strict';
+
+  const F0 = 35;      // physical starting frequency, Hz
+  const SHIFT = 4.2;  // audible-layer transposition
+
+  let ctx = null;
+  let master, comp, wet, dry, conv;
+  let enabled = false;
+  let live = [];      // nodes to force-stop on abort
+
+  function noiseBuffer(dur) {
+    const n = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const b = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+
+  /* procedural impulse response: decaying noise + a few early
+     reflections. Cheaper than shipping a 300kb IR wav. */
+  function impulse(dur, decay) {
+    const n = Math.floor(ctx.sampleRate * dur);
+    const b = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = b.getChannelData(ch);
+      for (let i = 0; i < n; i++) {
+        const t = i / n;
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+      }
+      [0.013, 0.029, 0.047, 0.081].forEach((tap, k) => {
+        const i = Math.floor(tap * ctx.sampleRate * (1 + ch * 0.07));
+        if (i < n) d[i] += (k % 2 ? -1 : 1) * 0.55 / (k + 1);
+      });
+    }
+    return b;
+  }
+
+  function build() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    ctx = new AC();
+
+    master = ctx.createGain();
+    master.gain.value = 0.0;
+
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14;
+    comp.knee.value = 22;
+    comp.ratio.value = 7;
+    comp.attack.value = 0.004;
+    comp.release.value = 0.22;
+
+    conv = ctx.createConvolver();
+    conv.buffer = impulse(3.2, 2.4);
+
+    wet = ctx.createGain(); wet.gain.value = 0.34;
+    dry = ctx.createGain(); dry.gain.value = 1.0;
+
+    master.connect(dry).connect(comp);
+    master.connect(conv).connect(wet).connect(comp);
+    comp.connect(ctx.destination);
+    return true;
+  }
+
+  function track(node) { live.push(node); return node; }
+
+  function env(param, t0, pts) {
+    param.setValueAtTime(Math.max(pts[0][1], 1e-4), t0);
+    for (let i = 1; i < pts.length; i++) {
+      param.exponentialRampToValueAtTime(
+        Math.max(pts[i][1], 1e-4), t0 + pts[i][0]);
+    }
+  }
+
+  /* ---------- one-shot voices ---------- */
+
+  function osc(type, t0, dur, freqPlan, gainPlan, dest) {
+    const o = track(ctx.createOscillator());
+    const g = ctx.createGain();
+    o.type = type;
+    freqPlan(o.frequency, t0);
+    env(g.gain, t0, gainPlan);
+    o.connect(g).connect(dest || master);
+    o.start(t0);
+    o.stop(t0 + dur + 0.05);
+    o.onended = () => { try { g.disconnect(); } catch (e) {} };
+    return o;
+  }
+
+  function noise(t0, dur, filterType, freqPlan, gainPlan, q) {
+    const s = track(ctx.createBufferSource());
+    s.buffer = noiseBuffer(Math.max(dur, 0.05));
+    const f = ctx.createBiquadFilter();
+    f.type = filterType;
+    f.Q.value = q == null ? 1.2 : q;
+    freqPlan(f.frequency, t0);
+    const g = ctx.createGain();
+    env(g.gain, t0, gainPlan);
+    s.connect(f).connect(g).connect(master);
+    s.start(t0);
+    s.stop(t0 + dur);
+    s.onended = () => { try { g.disconnect(); } catch (e) {} };
+    return s;
+  }
+
+  /* ---------- public ---------- */
+
+  function ready() {
+    if (!ctx && !build()) return false;
+    if (ctx.state === 'suspended') ctx.resume();
+    return true;
+  }
+
+  function setEnabled(v) {
+    enabled = !!v;
+    if (!enabled) {
+      if (ctx) master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05);
+    } else if (ready()) {
+      master.gain.setTargetAtTime(0.85, ctx.currentTime, 0.08);
+    }
+    return enabled;
+  }
+
+  /* Schedules the whole event up front. inspiral seconds of chirp,
+     then merge at t0+inspiral, then ringdown. Sample-accurate —
+     the browser's audio thread does not care about frame drops. */
+  function inspiral(inspiralDur) {
+    if (!enabled || !ready()) return 0;
+    const t0 = ctx.currentTime + 0.02;
+    const D = inspiralDur;
+
+    /* ---- frequency curve, sampled from the chirp law ---- */
+    const N = 1024;
+    const phys = new Float32Array(N);
+    const aud  = new Float32Array(N);
+    const harm = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const f = F0 * window.GWChirp(i / (N - 1));
+      phys[i] = f;
+      aud[i]  = f * SHIFT;
+      harm[i] = f * SHIFT * 1.5;   // 3:2, gives the metallic edge
+    }
+
+    /* 1. sub bed — the room pressure, not really a pitch */
+    osc('sine', t0, D + 0.4,
+      (p, t) => { p.setValueAtTime(26, t);
+                  p.linearRampToValueAtTime(38, t + D); },
+      [[0, 0.02], [D * 0.7, 0.42], [D, 0.72]]);
+
+    /* 2. physical chirp — felt more than heard */
+    osc('sine', t0, D,
+      (p, t) => p.setValueCurveAtTime(phys, t, D),
+      [[0, 0.05], [D * 0.6, 0.30], [D, 0.62]]);
+
+    /* 3. audible chirp — the LIGO whoop */
+    osc('sine', t0, D,
+      (p, t) => p.setValueCurveAtTime(aud, t, D),
+      [[0, 0.012], [D * 0.55, 0.14], [D * 0.9, 0.34], [D, 0.46]]);
+
+    /* 4. harmonic */
+    osc('triangle', t0, D,
+      (p, t) => p.setValueCurveAtTime(harm, t, D),
+      [[0, 0.004], [D * 0.8, 0.05], [D, 0.13]]);
+
+    /* 5. accretion hiss, sweeping up with the orbit */
+    noise(t0, D + 0.2, 'bandpass',
+      (p, t) => { p.setValueAtTime(190, t);
+                  p.exponentialRampToValueAtTime(2600, t + D); },
+      [[0, 0.02], [D * 0.7, 0.10], [D, 0.22]], 2.4);
+
+    /* 6. tick track — one click per orbit, accelerating.
+       Cheap, and it makes the acceleration legible. */
+    let ph = 0;
+    for (let i = 0; i < 400; i++) {
+      const x = i / 400;
+      ph += 1 / (18 * window.GWChirp(x));
+      if (ph >= D) break;
+      osc('sine', t0 + ph, 0.05,
+        (p, t) => { p.setValueAtTime(760 + 900 * x, t);
+                    p.exponentialRampToValueAtTime(180, t + 0.05); },
+        [[0, 0.05 + 0.13 * x], [0.05, 0.0001]]);
+    }
+
+    return t0;
+  }
+
+  /* The merge. Called at the merge instant, schedules impact +
+     ringdown + the wave leaving. */
+  function merge() {
+    if (!enabled || !ready()) return;
+    const t0 = ctx.currentTime + 0.005;
+
+    /* impact: pitch-dropping sub. This is the "boom". */
+    osc('sine', t0, 1.4,
+      (p, t) => { p.setValueAtTime(64, t);
+                  p.exponentialRampToValueAtTime(17, t + 0.95); },
+      [[0, 0.9], [0.06, 1.0], [1.4, 0.0001]]);
+
+    /* body of the impact */
+    osc('sawtooth', t0, 0.5,
+      (p, t) => { p.setValueAtTime(150, t);
+                  p.exponentialRampToValueAtTime(42, t + 0.4); },
+      [[0, 0.42], [0.5, 0.0001]]);
+
+    /* the crack — broadband transient */
+    noise(t0, 0.9, 'lowpass',
+      (p, t) => { p.setValueAtTime(5200, t);
+                  p.exponentialRampToValueAtTime(280, t + 0.5); },
+      [[0, 0.85], [0.9, 0.0001]], 0.8);
+
+    /* ringdown: quasinormal modes of the remnant. Damped sines,
+       fundamental plus overtone, ~250 Hz for 62 solar masses. */
+    osc('sine', t0 + 0.01, 1.2,
+      (p, t) => { p.setValueAtTime(252, t);
+                  p.exponentialRampToValueAtTime(228, t + 0.7); },
+      [[0, 0.40], [1.2, 0.0001]]);
+    osc('sine', t0 + 0.01, 0.8,
+      (p, t) => { p.setValueAtTime(187, t);
+                  p.exponentialRampToValueAtTime(171, t + 0.5); },
+      [[0, 0.22], [0.8, 0.0001]]);
+
+    /* the wave leaving: descending band of noise */
+    noise(t0 + 0.04, 2.6, 'bandpass',
+      (p, t) => { p.setValueAtTime(1500, t);
+                  p.exponentialRampToValueAtTime(68, t + 2.2); },
+      [[0, 0.34], [0.4, 0.24], [2.6, 0.0001]], 3.2);
+
+    /* residual hum of a single spinning hole */
+    osc('sine', t0 + 0.6, 4.0,
+      (p, t) => { p.setValueAtTime(44, t);
+                  p.linearRampToValueAtTime(31, t + 4.0); },
+      [[0, 0.02], [0.6, 0.20], [4.0, 0.0001]]);
+  }
+
+  /* Spacetime failing: a fabric rip, not an explosion. Resonant noise
+     collapsing downward, a sheet-metal shriek over it, and granular
+     shreds scattered across the tear so it sounds like it is still
+     coming apart after the initial break. */
+  function tear() {
+    if (!enabled || !ready()) return;
+    const t0 = ctx.currentTime + 0.005;
+
+    noise(t0, 0.58, 'bandpass',
+      (p, t) => { p.setValueAtTime(4200, t);
+                  p.exponentialRampToValueAtTime(320, t + 0.5); },
+      [[0, 0.55], [0.08, 0.40], [0.58, 0.0001]], 9);
+
+    osc('sawtooth', t0 + 0.02, 0.5,
+      (p, t) => { p.setValueAtTime(1900, t);
+                  p.exponentialRampToValueAtTime(140, t + 0.45); },
+      [[0, 0.16], [0.5, 0.0001]]);
+
+    osc('sine', t0, 0.75,
+      (p, t) => { p.setValueAtTime(92, t);
+                  p.exponentialRampToValueAtTime(26, t + 0.6); },
+      [[0, 0.48], [0.75, 0.0001]]);
+
+    for (let i = 0; i < 14; i++) {
+      const tt = t0 + Math.pow(i / 14, 1.4) * 0.62;
+      const f  = 1200 + Math.random() * 3000;
+      noise(tt, 0.05, 'highpass',
+        (p, t) => p.setValueAtTime(f, t),
+        [[0, 0.09 + Math.random() * 0.13], [0.05, 0.0001]], 1.0);
+    }
+  }
+
+  /* Reassembly: quiet bells arriving in a rising cluster, one per
+     handful of particles landing, under a filter swell that opens as
+     the page comes back. */
+  function reform(dur) {
+    if (!enabled || !ready()) return;
+    const t0 = ctx.currentTime + 0.01;
+    const D = dur || 2.4;
+
+    noise(t0, D, 'bandpass',
+      (p, t) => { p.setValueAtTime(300, t);
+                  p.exponentialRampToValueAtTime(3400, t + D * 0.8); },
+      [[0, 0.02], [D * 0.55, 0.15], [D, 0.02]], 1.6);
+
+    const SCALE = [196.0, 233.1, 261.6, 311.1, 349.2, 392.0,
+                   466.2, 523.3, 622.3, 698.5, 784.0];
+    for (let i = 0; i < 26; i++) {
+      const x = i / 25;
+      const tt = t0 + Math.pow(x, 0.85) * D * 0.82;
+      const f = SCALE[Math.min(SCALE.length - 1, Math.floor(x * SCALE.length))] *
+                (Math.random() < 0.3 ? 2 : 1);
+      osc('sine', tt, 0.9,
+        (p, t) => p.setValueAtTime(f, t),
+        [[0, 0.045 + Math.random() * 0.05], [0.9, 0.0001]]);
+    }
+
+    osc('triangle', t0 + D * 0.55, D * 0.6,
+      (p, t) => { p.setValueAtTime(98, t);
+                  p.linearRampToValueAtTime(130.8, t + D * 0.5); },
+      [[0, 0.01], [D * 0.35, 0.09], [D * 0.6, 0.0001]]);
+  }
+
+  function abort() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    live.forEach(n => { try { n.stop(t); } catch (e) {} });
+    live = [];
+    master.gain.cancelScheduledValues(t);
+    master.gain.setTargetAtTime(enabled ? 0.85 : 0.0001, t, 0.05);
+  }
+
+  return {
+    ready, setEnabled, inspiral, merge, tear, reform, abort,
+    isEnabled: () => enabled,
+    now: () => (ctx ? ctx.currentTime : 0),
+    hasCtx: () => !!ctx
+  };
+})();
+
+
+/* ===== assets/main.js ===== */
+/* ============================================================
+   main.js — timeline, wavefront, tear, and reassembly
+   ------------------------------------------------------------
+   One clock. One chirp function (window.GWChirp, shared with the
+   audio engine so picture and sound cannot drift).
+
+   Act structure after the merge, all driven off `shockT`, seconds
+   since the collision:
+
+     RIP     the wavefront sweeps outward and everything it reaches
+             fails: content is thrown along its radial direction and
+             fades, while jagged wedges open from the epicentre and
+             black out the spacetime lattice behind it
+     VOID    nothing. The page does not exist for a third of a second
+     REFORM  the page is rebuilt out of dust: particles converge on
+             the silhouette of where the content was, and the real DOM
+             crossfades back in underneath them as they land
+     SETTLE  wedges healed, remnant ringing down, trigger re-armed
+
+   Per frame this writes:
+     --w --tr --tv    -> every [data-warp] element
+     --tear-g         -> :root, for the lattice and structural frames
+     --shock-r        -> the two fixed ring overlays
+     transform        -> #shake only (translate/rotate, nothing else)
+     canvas           -> #rip (wedges) and #dust (particles)
+     uniforms         -> the shader
+   ============================================================ */
+
+(function () {
+  'use strict';
+
+  const $  = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+  const lerp  = (a, b, t) => a + (b - a) * t;
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+
+  /* ---------------- timeline (seconds) ---------------- */
+  const T_CHARGE   = 0.45;
+  const T_INSPIRAL = 6.00;
+  const T_MERGE    = T_CHARGE + T_INSPIRAL;
+  const T_FREEZE   = 0.10;   // held frame at the moment of merger
+  const T_RIP      = 0.70;
+  const T_VOID     = 0.30;
+  const T_REFORM   = 2.40;
+  const T_SETTLE   = 1.60;
+  const T_END      = T_MERGE + T_RIP + T_VOID + T_REFORM + T_SETTLE;
+
+  /* The tear rides the primary wavefront, so both fronts are the same
+     front. Speed is set so it clears the largest plausible viewport
+     inside T_RIP — a slower wave would still be tearing during the
+     void, and the two acts would smear into each other. */
+  const FRONT_SPEED = 2600;
+  const TEAR_RAMP   = 0.26;   // seconds from intact to fully gone
+
+  const WAVES = [
+    { delay: 0.00, speed: FRONT_SPEED, amp: 1.00, width: 190 },
+    { delay: 0.14, speed: 2000,        amp: 0.44, width: 250 }
+  ];
+
+  const DUST_MAX  = 2600;
+  const DUST_STEP = 5;       // sampling grid, px
+
+  /* ---------------- element refs ---------------- */
+  const els = {
+    hero:     $('#hero'),
+    canvas:   $('#bh'),
+    title:    $('#title'),
+    trigger:  $('#trigger'),
+    hint:     $('#hint'),
+    lens:     $('#shockLens'),
+    glow:     $('#shockGlow'),
+    flash:    $('#flash'),
+    grain:    $('#grain'),
+    shake:    $('#shake'),
+    page:     $('#page'),
+    rip:      $('#rip'),
+    dust:     $('#dust'),
+    soundBtn: $('#soundToggle'),
+    soundLbl: $('.sound-label'),
+    disp:     $('#gw-disp'),
+    turb:     $('#gw-turb'),
+    form:     $('#signup'),
+    email:    $('#email'),
+    formNote: $('#formNote')
+  };
+
+  const root = document.documentElement;
+
+  /* ---------------- quality / preferences ---------------- */
+  const prefersReduced =
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const quality = {
+    svgFilter: !prefersReduced && (navigator.hardwareConcurrency || 4) > 4,
+    dpr: Math.min(window.devicePixelRatio || 1, 1.75),
+    degraded: false
+  };
+
+  /* localStorage throws outright in Safari private mode and in
+     sandboxed iframes, which would take the whole script down before
+     the first frame. The preference is a nicety; the page is not. */
+  function prefGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function prefSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  const AMP = { full: 1, reduced: 0.34, off: 0 };
+  let intensity = prefGet('gw-intensity') ||
+                  (prefersReduced ? 'reduced' : 'full');
+
+  function applyIntensity(v) {
+    intensity = v;
+    prefSet('gw-intensity', v);
+    root.style.setProperty('--amp', String(AMP[v]));
+    document.body.classList.toggle('int-off', v === 'off');
+    $$('.intensity button').forEach(b =>
+      b.setAttribute('aria-current', String(b.dataset.int === v)));
+  }
+
+  /* ============================================================
+     1. Fragment the type
+     ------------------------------------------------------------
+     The headline splits per glyph and short copy splits per word,
+     because the tear breaks along whatever the smallest independent
+     box is. Whole paragraphs are left intact — 400 fragments would
+     cost more per frame than it buys visually.
+     ============================================================ */
+  function buildTitle() {
+    const LINES = ['Two black holes', 'become one'];
+    const frag = document.createDocumentFragment();
+    LINES.forEach((line, li) => {
+      line.split(' ').forEach((word, wi) => {
+        if (wi > 0) frag.appendChild(document.createTextNode(' '));
+        const w = document.createElement('span');
+        w.className = 'word';
+        w.setAttribute('aria-hidden', 'true');
+        for (const ch of word) {
+          const s = document.createElement('span');
+          s.textContent = ch;
+          s.setAttribute('data-warp', 'text');
+          w.appendChild(s);
+        }
+        frag.appendChild(w);
+      });
+      if (li < LINES.length - 1) frag.appendChild(document.createElement('br'));
+    });
+    els.title.appendChild(frag);
+  }
+
+  function splitWords() {
+    $$('[data-split="word"]').forEach(el => {
+      const text = el.textContent.replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      const label = el.getAttribute('aria-label') || text;
+      el.textContent = '';
+      el.setAttribute('aria-label', label);
+      /* the element itself must NOT be a warp target once its words
+         are, or parent and child transforms compound */
+      el.removeAttribute('data-warp');
+      text.split(' ').forEach((word, i) => {
+        if (i > 0) el.appendChild(document.createTextNode(' '));
+        const s = document.createElement('span');
+        s.className = 'frag';
+        s.textContent = word;
+        s.setAttribute('data-warp', 'text');
+        s.setAttribute('aria-hidden', 'true');
+        el.appendChild(s);
+      });
+    });
+  }
+
+  /* ============================================================
+     2. Grain texture, generated rather than shipped
+     ============================================================ */
+  function buildGrain(size) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    const img = g.createImageData(size, size);
+    const d = img.data;
+    /* dark noise, meant to be screened onto a black page */
+    for (let i = 0; i < d.length; i += 4) {
+      const v = Math.pow(Math.random(), 2.2) * 96;
+      d[i] = d[i + 1] = d[i + 2] = v;
+      d[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    root.style.setProperty('--grain-src', 'url(' + c.toDataURL() + ')');
+  }
+
+  /* ============================================================
+     3. Warp targets — document-space centres cached once
+     ============================================================ */
+  let targets = [];
+
+  function measure() {
+    const sy = window.scrollY || window.pageYOffset;
+    const sx = window.scrollX || window.pageXOffset;
+    targets = $$('[data-warp]').map(el => {
+      const r = el.getBoundingClientRect();
+      return {
+        el: el,
+        cx: r.left + sx + r.width  / 2,
+        cy: r.top  + sy + r.height / 2,
+        size: Math.max(r.width, r.height),
+        w: 0, tr: 0, tv: 0,
+        dist: 0, distN: 0,
+        dirty: false, torn: false
+      };
+    });
+  }
+
+  let measureTimer = 0;
+  function scheduleMeasure() {
+    clearTimeout(measureTimer);
+    measureTimer = setTimeout(() => { measure(); sizeCanvases(); }, 140);
+  }
+
+  /* ============================================================
+     4. Renderer
+     ============================================================ */
+  const bh = window.BlackHole.create(els.canvas);
+  if (!bh) {
+    els.canvas.style.background =
+      'radial-gradient(60% 45% at 50% 72%, #ffe9a8 0%, #ff9a3c 12%, ' +
+      '#b4188e 30%, #3a1173 52%, #0b1046 74%, #050507 100%)';
+  } else {
+    bh.setDpr(quality.dpr);
+  }
+
+  /* ============================================================
+     5. State
+     ============================================================ */
+  const S = {
+    running: false,
+    t0: 0,
+    useAudioClock: false,
+    audioT0: 0,
+    elapsed: 0,
+    trauma: 0,
+    flash: 0,
+    merged: false,
+    shockT: 0,
+    orbit: 0,
+    spin: 0,
+    epi: { x: 0, y: 0 },        // viewport coords
+    epiDoc: { x: 0, y: 0 },     // document coords, frozen at merge
+    heroR: 0,
+    maxR: 2000,
+    tearG: 0,
+    reformP: 0,
+    ripOpen: 0,
+    scrub: null                 // debug only: pins the clock
+  };
+
+  function nowSec() {
+    if (S.scrub !== null) return S.scrub;
+    return (S.useAudioClock && window.GWAudio.hasCtx())
+      ? window.GWAudio.now() - S.audioT0
+      : (performance.now() - S.t0) / 1000;
+  }
+
+  /* ============================================================
+     6. Wavefront
+     ============================================================ */
+  function waveAt(dist) {
+    let sum = 0;
+    for (let i = 0; i < WAVES.length; i++) {
+      const W = WAVES[i];
+      const t = S.shockT - W.delay;
+      if (t <= 0) continue;
+      const u = (t * W.speed - dist) / W.width;
+      if (u < -1.9 || u > 1.9) continue;
+      /* peak displacement at the front, one sign reversal behind it:
+         a crude stand-in for the quadrupolar polarity flip */
+      const prof = Math.exp(-u * u * 2.4) * Math.cos(u * Math.PI * 1.15);
+      sum += prof * (1 / (1 + dist / 820)) * Math.exp(-t * 0.55) * W.amp;
+    }
+    return sum;
+  }
+
+  function frontRadius() { return Math.max(0, S.shockT) * FRONT_SPEED; }
+
+  /* ============================================================
+     7. Tear + reassembly phase math
+     ============================================================ */
+  function phases() {
+    const st = S.shockT;
+    const reformT = st - (T_RIP + T_VOID);
+    S.reformP = clamp01(reformT / T_REFORM);
+    /* wedges snap open, hold through the void, then heal */
+    S.ripOpen = clamp01(st / 0.32) * (1 - clamp01((S.reformP - 0.04) / 0.62));
+    S.tearG = clamp01(st / 0.5) * (1 - clamp01((S.reformP - 0.50) / 0.36));
+  }
+
+  /* Per-element tear, two channels. Returns [displacement, fade].
+     Outbound they move together. Inbound the displacement collapses in
+     0.06 of the reform while the fade is still 1, so the element lands
+     back on its real coordinates invisible and then materialises there.
+     The dust does the travelling; if the DOM travelled too you would
+     see it mid-flight beside its own particles. */
+  const TEAR_OUT = [0, 0];
+  function tearAt(dist, distN) {
+    TEAR_OUT[0] = TEAR_OUT[1] = 0;
+    if (S.shockT <= 0) return TEAR_OUT;
+    const gone = clamp01((S.shockT - dist / FRONT_SPEED) / TEAR_RAMP);
+    if (gone <= 0) return TEAR_OUT;
+    /* staggered: what was closest to the merger reforms first */
+    const start = 0.46 + 0.16 * distN;
+    const snap = clamp01((S.reformP - start) / 0.06);
+    const back = clamp01((S.reformP - start) / 0.32);
+    TEAR_OUT[0] = gone * (1 - snap);
+    TEAR_OUT[1] = gone * (1 - back);
+    return TEAR_OUT;
+  }
+
+  /* ============================================================
+     8. #rip — the wedges. Opaque black, hot white edges. Widest in
+        the middle so the remnant itself stays visible at the base.
+     ============================================================ */
+  const RIP = { cracks: [], ctx: null, w: 0, h: 0, dpr: 1 };
+
+  function buildRip() {
+    const n = 8;
+    RIP.cracks = [];
+    for (let i = 0; i < n; i++) {
+      const jag = [];
+      for (let k = 0; k <= 11; k++) jag.push(Math.random() * 2 - 1);
+      RIP.cracks.push({
+        a: (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.5,
+        jag: jag,
+        /* narrow on purpose: eight wedges at the old widths left almost
+           no page between them, and the remnant is the point of the
+           shot — the tear frames it, it does not replace it */
+        w: 13 + Math.random() * 30,
+        len: 0.66 + Math.random() * 0.62
+      });
+    }
+  }
+
+  function drawRip() {
+    const c = RIP.ctx;
+    if (!c) return;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, RIP.w, RIP.h);
+    const open = S.ripOpen * (intensity === 'off' ? 0 : Math.min(1, AMP[intensity] * 1.6));
+    if (open <= 0.004) return;
+
+    const front = frontRadius();
+    c.scale(RIP.dpr, RIP.dpr);
+    c.translate(S.epi.x, S.epi.y);
+
+    for (let i = 0; i < RIP.cracks.length; i++) {
+      const k = RIP.cracks[i];
+      const L = Math.min(front * k.len, S.maxR * 1.5);
+      if (L < 10) continue;
+      const N = k.jag.length - 1;
+      const px = [], py = [], qx = [], qy = [];
+      for (let j = 0; j <= N; j++) {
+        const t = j / N;
+        const r = t * L;
+        const wid = Math.pow(Math.sin(Math.PI * t), 0.7) * k.w * open;
+        const ang = k.a + k.jag[j] * 0.11;
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        px.push(ca * r - sa * wid); py.push(sa * r + ca * wid);
+        qx.push(ca * r + sa * wid); qy.push(sa * r - ca * wid);
+      }
+      c.beginPath();
+      c.moveTo(px[0], py[0]);
+      for (let j = 1; j <= N; j++) c.lineTo(px[j], py[j]);
+      for (let j = N; j >= 0; j--) c.lineTo(qx[j], qy[j]);
+      c.closePath();
+      c.fillStyle = '#000';
+      c.fill();
+      c.strokeStyle = 'rgba(255,255,255,' + (0.9 * open).toFixed(3) + ')';
+      c.lineWidth = 1.3;
+      c.shadowColor = 'rgba(255,255,255,.85)';
+      c.shadowBlur = 18 * open;
+      c.stroke();
+      c.shadowBlur = 0;
+    }
+  }
+
+  /* ============================================================
+     9. #dust — particle reassembly
+     ------------------------------------------------------------
+     Targets are sampled from an offscreen silhouette of the page:
+     real letterforms for the headline (fillText with the computed
+     font), dashes along each text line for body copy, outlines for
+     boxes. Positions are stored in DOCUMENT space so scrolling
+     between build and playback stays correct.
+     ============================================================ */
+  const DUST = { p: null, n: 0, ctx: null, w: 0, h: 0, dpr: 1, builtAt: -1e9 };
+
+  function lineRects(el) {
+    try {
+      const rg = document.createRange();
+      rg.selectNodeContents(el);
+      return Array.prototype.slice.call(rg.getClientRects());
+    } catch (e) { return []; }
+  }
+
+  function buildDust() {
+    const W = Math.max(1, window.innerWidth);
+    const H = Math.max(1, window.innerHeight);
+    const off = document.createElement('canvas');
+    off.width = W; off.height = H;
+    const o = off.getContext('2d');
+    o.fillStyle = '#fff';
+    o.strokeStyle = '#fff';
+    o.textBaseline = 'middle';
+    /* centred, not left-aligned: the glyph rects carry the element's
+       negative letter-spacing, so drawing from r.left lands each
+       letter off its own box and the whole word reads doubled */
+    o.textAlign = 'center';
+
+    const seen = new Set();
+
+    /* headline: true letterforms */
+    $$('.title .word span').forEach(sp => {
+      const r = sp.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > H || r.width < 1) return;
+      const cs = getComputedStyle(sp);
+      o.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      o.fillText(sp.textContent, r.left + r.width * 0.5, r.top + r.height * 0.54);
+      seen.add(sp);
+    });
+
+    targets.forEach(t => {
+      if (seen.has(t.el)) return;
+      const el = t.el;
+      const br = el.getBoundingClientRect();
+      if (br.bottom < -40 || br.top > H + 40 || br.width < 2) return;
+
+      if (el.getAttribute('data-warp') === 'box') {
+        /* boxes: outline plus two interior rules, so a card reads as
+           a card rather than as a solid slab of dust */
+        o.lineWidth = 2;
+        o.strokeRect(br.left + 1, br.top + 1, br.width - 2, br.height - 2);
+        for (let k = 1; k <= 2; k++) {
+          const y = br.top + (br.height * k) / 3;
+          o.fillRect(br.left + br.width * 0.12, y, br.width * 0.5, 1.6);
+        }
+        return;
+      }
+
+      /* text: dashes along each line box */
+      const fs = parseFloat(getComputedStyle(el).fontSize) || 14;
+      lineRects(el).forEach(r => {
+        if (r.bottom < 0 || r.top > H || r.width < 4) return;
+        const h = Math.max(2, Math.min(r.height * 0.5, fs * 0.46));
+        const y = r.top + r.height * 0.5 - h / 2;
+        let x = r.left;
+        while (x < r.right - 2) {
+          const dash = Math.min(6 + Math.random() * 34, r.right - x);
+          o.fillRect(x, y, dash, h);
+          x += dash + 4 + Math.random() * 7;
+        }
+      });
+    });
+
+    /* sample the silhouette */
+    const data = o.getImageData(0, 0, W, H).data;
+    const pts = [];
+    for (let y = 0; y < H; y += DUST_STEP) {
+      for (let x = 0; x < W; x += DUST_STEP) {
+        if (data[(y * W + x) * 4 + 3] > 90) pts.push(x, y);
+      }
+    }
+
+    /* budget: keep a random subset rather than the top-left corner */
+    let count = pts.length / 2;
+    const budget = Math.round(DUST_MAX * (intensity === 'reduced' ? 0.45 : 1));
+    let keep = Math.min(count, budget);
+    const idx = new Uint32Array(count);
+    for (let i = 0; i < count; i++) idx[i] = i;
+    for (let i = count - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      const tmp = idx[i]; idx[i] = idx[j]; idx[j] = tmp;
+    }
+
+    const sy = window.scrollY || window.pageYOffset;
+    const sx = window.scrollX || window.pageXOffset;
+    const ex = S.epi.x, ey = S.epi.y;
+
+    /* 5 floats per particle: tx, ty, sx, sy, delay — flat and typed,
+       because this is touched 2600 times a frame */
+    const p = new Float32Array(keep * 5);
+    for (let i = 0; i < keep; i++) {
+      const k = idx[i] * 2;
+      const vx = pts[k], vy = pts[k + 1];
+      let dx = vx - ex, dy = vy - ey;
+      const len = Math.max(Math.hypot(dx, dy), 1);
+      const push = len + 260 + Math.random() * 520;
+      const rot = (Math.random() - 0.5) * 0.95;
+      const cr = Math.cos(rot), sr = Math.sin(rot);
+      const ux = dx / len, uy = dy / len;
+      const o5 = i * 5;
+      p[o5]     = vx + sx;
+      p[o5 + 1] = vy + sy;
+      p[o5 + 2] = ex + sx + (ux * cr - uy * sr) * push;
+      p[o5 + 3] = ey + sy + (ux * sr + uy * cr) * push;
+      p[o5 + 4] = clamp01(len / (S.maxR * 0.9));
+    }
+
+    DUST.p = p;
+    DUST.n = keep;
+    DUST.builtAt = sy;
+  }
+
+  function drawDust() {
+    const c = DUST.ctx;
+    if (!c) return;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, DUST.w, DUST.h);
+    if (!DUST.p || intensity === 'off') return;
+
+    const rp = S.reformP;
+    if (rp <= 0 || rp >= 1) return;
+
+    /* Cloud brightness: up fast, then out just ahead of the real DOM
+       arriving. The two windows have to barely overlap — run them
+       together and every glyph reads as a double exposure. */
+    const cloud = Math.min(1, rp * 8) * (1 - clamp01((rp - 0.48) / 0.30));
+    if (cloud <= 0.004) return;
+
+    const sy = window.scrollY || window.pageYOffset;
+    const sx = window.scrollX || window.pageXOffset;
+    const p = DUST.p, n = DUST.n;
+
+    c.scale(DUST.dpr, DUST.dpr);
+    c.globalAlpha = cloud;
+    c.fillStyle = '#ffffff';
+
+    for (let i = 0; i < n; i++) {
+      const o5 = i * 5;
+      const pr = clamp01((rp - p[o5 + 4] * 0.42) / 0.5);
+      if (pr <= 0) continue;
+      const e = easeOut(pr);
+      const x = p[o5 + 2] + (p[o5]     - p[o5 + 2]) * e - sx;
+      const y = p[o5 + 3] + (p[o5 + 1] - p[o5 + 3]) * e - sy;
+      /* size carries per-particle brightness, so the whole cloud
+         draws under one globalAlpha instead of 2600 state changes */
+      const s = 0.9 + 1.5 * pr;
+      c.fillRect(x, y, s, s);
+    }
+    c.globalAlpha = 1;
+  }
+
+  function sizeCanvases() {
+    const d = Math.min(window.devicePixelRatio || 1, 1.5);
+    [[els.rip, RIP], [els.dust, DUST]].forEach(pair => {
+      const el = pair[0], o = pair[1];
+      const w = Math.max(1, Math.round(window.innerWidth  * d));
+      const h = Math.max(1, Math.round(window.innerHeight * d));
+      if (el.width !== w || el.height !== h) { el.width = w; el.height = h; }
+      o.ctx = o.ctx || el.getContext('2d');
+      o.w = w; o.h = h; o.dpr = d;
+    });
+  }
+
+  /* ============================================================
+     10. Per-frame DOM writes
+     ============================================================ */
+  function writeWarp() {
+    const sy = window.scrollY || window.pageYOffset;
+    const sx = window.scrollX || window.pageXOffset;
+    const ex = S.epi.x + sx;
+    const ey = S.epi.y + sy;
+    const rippling = S.shockT > 0 && S.shockT < T_RIP + 0.4;
+    const tearing  = S.merged && S.reformP < 1;
+
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+
+      let w = 0;
+      if (rippling) {
+        const dx = t.cx - ex, dy = t.cy - ey;
+        w = clamp(waveAt(Math.sqrt(dx * dx + dy * dy)), -1.7, 1.7);
+      }
+      let tr = 0, tv = 0;
+      if (tearing) {
+        const o = tearAt(t.dist, t.distN);
+        tr = o[0]; tv = o[1];
+      }
+
+      /* only write when the value actually moved: at ~150 targets this
+         is the difference between 300 style writes a frame and 30 */
+      if (w !== t.w && (Math.abs(w - t.w) > 0.0015 || w === 0)) {
+        t.w = w;
+        t.el.style.setProperty('--w', w.toFixed(4));
+      }
+      if (tr !== t.tr && (Math.abs(tr - t.tr) > 0.002 || tr === 0 || tr === 1)) {
+        t.tr = tr;
+        t.el.style.setProperty('--tr', tr.toFixed(4));
+      }
+      if (tv !== t.tv && (Math.abs(tv - t.tv) > 0.002 || tv === 0 || tv === 1)) {
+        t.tv = tv;
+        t.el.style.setProperty('--tv', tv.toFixed(4));
+      }
+      t.dirty = w !== 0 || tr !== 0 || tv !== 0;
+    }
+
+    root.style.setProperty('--tear-g',
+      (S.tearG * (intensity === 'off' ? 0 : 1)).toFixed(4));
+  }
+
+  /* frozen at the merge instant: direction and spin of each fragment,
+     and its distance from the epicentre. Written once, not per frame. */
+  function armTear() {
+    const sy = window.scrollY || window.pageYOffset;
+    const sx = window.scrollX || window.pageXOffset;
+    S.epiDoc.x = S.epi.x + sx;
+    S.epiDoc.y = S.epi.y + sy;
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      const dx = t.cx - S.epiDoc.x, dy = t.cy - S.epiDoc.y;
+      const d = Math.max(Math.hypot(dx, dy), 1);
+      t.dist = d;
+      t.distN = clamp01(d / (S.maxR * 0.9));
+      const st = t.el.style;
+      st.setProperty('--tx', (dx / d).toFixed(4));
+      st.setProperty('--ty', (dy / d).toFixed(4));
+      /* small fragments tumble, big slabs barely rotate — a whole
+         400px button at 45deg reads as a bug, a single glyph at 45deg
+         reads as debris */
+      const spin = 50 * clamp(140 / Math.max(t.size, 40), 0.2, 1);
+      st.setProperty('--rot', ((Math.random() * 2 - 1) * spin).toFixed(2));
+    }
+  }
+
+  function setWarpHints(on) {
+    for (let i = 0; i < targets.length; i++) {
+      targets[i].el.classList.toggle('warping', on);
+    }
+  }
+
+  /* trauma model: amplitude is trauma squared, so it decays
+     perceptually fast and never reads as a loop */
+  function writeShake() {
+    if (intensity === 'off') { els.shake.style.transform = ''; return; }
+    const a = S.trauma * S.trauma * AMP[intensity];
+    if (a < 0.0008) { els.shake.style.transform = ''; return; }
+    const x = (Math.random() * 2 - 1) * 28 * a;
+    const y = (Math.random() * 2 - 1) * 28 * a;
+    const r = (Math.random() * 2 - 1) * 1.4 * a;
+    els.shake.style.transform =
+      'translate3d(' + x.toFixed(2) + 'px,' + y.toFixed(2) + 'px,0) ' +
+      'rotate(' + r.toFixed(3) + 'deg)';
+  }
+
+  function writeOverlays() {
+    root.style.setProperty('--shock-x', S.epi.x.toFixed(1) + 'px');
+    root.style.setProperty('--shock-y', S.epi.y.toFixed(1) + 'px');
+
+    const amp = AMP[intensity];
+    const r = frontRadius();
+    const alive = S.shockT > 0 && r < S.maxR * 1.35;
+
+    if (alive && amp > 0) {
+      const fade = clamp01(1 - r / (S.maxR * 1.2));
+      els.lens.style.setProperty('--shock-r', r.toFixed(1) + 'px');
+      els.glow.style.setProperty('--shock-r', r.toFixed(1) + 'px');
+      els.lens.style.opacity = (fade * amp).toFixed(3);
+      els.glow.style.opacity = (fade * 0.9 * amp).toFixed(3);
+    } else {
+      els.lens.style.opacity = '0';
+      els.glow.style.opacity = '0';
+    }
+
+    els.flash.style.opacity = (S.flash * 0.85 * (amp > 0 ? 1 : 0)).toFixed(3);
+    els.grain.style.opacity =
+      clamp(S.trauma * 0.5 + S.flash * 0.2 + S.tearG * 0.28, 0, 0.6).toFixed(3);
+  }
+
+  /* The only true pixel-level warp of live text. Expensive, so: hero
+     subtree only, and the filter property is removed when idle. */
+  let filterOn = false;
+  function writeHeroFilter() {
+    if (!quality.svgFilter || intensity === 'off') {
+      if (filterOn) { els.hero.style.filter = ''; filterOn = false; }
+      return;
+    }
+    const scale = (S.trauma * 30 + Math.abs(waveAt(S.heroR)) * 26 + S.flash * 18)
+                  * AMP[intensity];
+    if (scale > 0.6) {
+      els.disp.setAttribute('scale', scale.toFixed(2));
+      els.turb.setAttribute('baseFrequency',
+        (0.0035 + S.trauma * 0.010).toFixed(5) + ' ' +
+        (0.0110 + S.trauma * 0.022).toFixed(5));
+      if (!filterOn) { els.hero.style.filter = 'url(#gw-displace)'; filterOn = true; }
+    } else if (filterOn) {
+      els.hero.style.filter = '';
+      els.disp.setAttribute('scale', '0');
+      filterOn = false;
+    }
+  }
+
+  /* ============================================================
+     11. Physics -> uniforms
+     ============================================================ */
+  const IDLE_OMEGA = 0.34;
+
+  function updatePhysics(dt) {
+    if (!bh) return;
+    const st = bh.state;
+    let chirp = 1, omega = IDLE_OMEGA;
+
+    if (!S.running) {
+      /* Idle, and also the re-arm path. Slow on purpose: the remnant
+         has to un-merge and drift apart again, and snapping it looks
+         like a bug rather than a reset. */
+      const k = 1 - Math.pow(0.30, dt);
+      st.sep   = lerp(st.sep,   0.42, k);
+      st.tilt  = lerp(st.tilt,  0.45, k);
+      st.zoom  = lerp(st.zoom,  1.00, k);
+      st.glow  = lerp(st.glow,  1.00, k);
+      st.merge = lerp(st.merge, 0,    k);
+      st.wobble = lerp(st.wobble, 0, 1 - Math.pow(0.02, dt));
+      st.shock = 0; st.flash = 0;
+    } else {
+      const e = S.elapsed;
+      if (e < T_CHARGE) {
+        const k = e / T_CHARGE;
+        st.glow = lerp(1.0, 1.10, k);
+        st.zoom = lerp(1.0, 1.04, k);
+      } else if (e < T_MERGE) {
+        const x = (e - T_CHARGE) / T_INSPIRAL;
+        chirp = window.GWChirp(x);
+        /* Real f_orb at plunge is ~130 Hz, which on a screen is a grey
+           disc. The exponent is a deliberate time-dilation. */
+        omega = 0.42 * Math.pow(chirp, 1.62);
+        st.sep  = 0.42 / Math.pow(chirp, 0.667);         // Kepler
+        if (x > 0.86) st.sep *= lerp(1, 0.30, (x - 0.86) / 0.14);
+        st.tilt = lerp(0.45, 0.92, easeInOut(clamp01(x * 1.15)));
+        st.zoom = lerp(1.04, 1.18, easeOut(x));
+        st.glow = lerp(1.10, 1.28, x * x);
+        S.trauma = Math.max(S.trauma, 0.055 + 0.24 * Math.pow(x, 4));
+      } else {
+        const rd = e - T_MERGE;
+        st.merge = clamp01(rd / 0.22);
+        st.sep = lerp(st.sep, 0, clamp01(rd / 0.18));
+        st.wobble = Math.exp(-rd * 2.4) * Math.sin(rd * Math.PI * 2 * 4.2);
+        st.tilt = lerp(st.tilt, 0.92, 1 - Math.pow(0.15, dt));
+        st.zoom = lerp(st.zoom, 1.06, 1 - Math.pow(0.25, dt));
+        st.glow = lerp(st.glow, 1.05, 1 - Math.pow(0.4, dt));
+        st.shock = rd < 2.0 ? rd * 1.1 : 0;
+        omega = 0.42 * Math.pow(7.4, 1.62) * Math.exp(-rd * 0.9) + 0.5;
+      }
+    }
+
+    /* Gas time and advection freeze at the merge instant. The held
+       frame is what makes the impact land; more motion is more noise. */
+    const frozen = S.merged && S.elapsed < T_MERGE + T_FREEZE;
+    if (!frozen) {
+      S.orbit += dt * omega;
+      S.spin  += dt * omega * 3.0;
+      st.t    += dt;
+    }
+    st.angle = S.orbit;
+    st.spin  = S.spin;
+    st.flash = S.flash;
+  }
+
+  /* ============================================================
+     12. Frame loop
+     ============================================================ */
+  let last = performance.now();
+  const ft = { acc: 0, n: 0 };
+  let paused = false;
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (paused) { last = now; return; }
+
+    let dt = (now - last) / 1000;
+    last = now;
+    if (dt > 0.1) dt = 0.1;          // tab-return / stall guard
+    if (dt <= 0) return;
+
+    ft.acc += dt; ft.n++;
+    if (ft.n >= 45) {
+      const avg = ft.acc / ft.n;
+      if (avg > 0.026 && !quality.degraded) {
+        quality.degraded = true;
+        if (bh) bh.setDpr(1.0);
+        document.body.classList.add('perf-low');
+      }
+      if (avg > 0.034 && quality.svgFilter) {
+        quality.svgFilter = false;
+        els.hero.style.filter = '';
+        filterOn = false;
+      }
+      ft.acc = 0; ft.n = 0;
+    }
+
+    if (S.running) {
+      S.elapsed = nowSec();
+      if (!S.merged && S.elapsed >= T_MERGE) fireMerge();
+      if (S.merged) S.shockT = S.elapsed - T_MERGE;
+      if (S.elapsed >= T_END) finish();
+    }
+
+    /* epicentre: mirrors the shader's aspect-aware world unit and its
+       0.27 downward offset exactly */
+    const hr = els.hero.getBoundingClientRect();
+    const unit = Math.min(hr.width / 0.86, hr.height);
+    S.epi.x = hr.left + hr.width * 0.5;
+    S.epi.y = hr.top + hr.height * 0.5 + unit * 0.27;
+    S.heroR = unit * 0.27;
+    S.maxR = Math.hypot(window.innerWidth, window.innerHeight) * 0.75 + 400;
+
+    S.trauma *= Math.pow(0.905, dt * 60);
+    S.flash  *= Math.pow(0.760, dt * 60);
+    if (S.trauma < 0.0005) S.trauma = 0;
+    if (S.flash  < 0.0008) S.flash  = 0;
+
+    phases();
+    updatePhysics(dt);
+    writeWarp();
+    writeShake();
+    writeOverlays();
+    writeHeroFilter();
+    drawRip();
+    drawDust();
+    if (bh) bh.draw();
+  }
+
+  /* ============================================================
+     13. Sequence control
+     ============================================================ */
+  let reformFired = false;
+
+  function start() {
+    if (S.running) return;
+    measure();
+    sizeCanvases();
+    setWarpHints(true);
+
+    S.running = true;
+    S.merged = false;
+    S.shockT = 0;
+    S.elapsed = 0;
+    S.reformP = 0;
+    S.ripOpen = 0;
+    S.tearG = 0;
+    S.t0 = performance.now();
+    S.useAudioClock = false;
+    reformFired = false;
+
+    els.trigger.classList.add('charging');
+    els.trigger.setAttribute('aria-disabled', 'true');
+    els.hint.style.opacity = '0';
+
+    if (window.GWAudio.isEnabled()) {
+      const at0 = window.GWAudio.inspiral(T_INSPIRAL);
+      if (at0) { S.audioT0 = at0 - T_CHARGE; S.useAudioClock = true; }
+    }
+  }
+
+  function fireMerge() {
+    S.merged = true;
+    S.flash = 1;
+    S.trauma = 1;
+
+    /* Dust targets are sampled from the page as it stands right now.
+       Rebuild if the reader scrolled a long way during the inspiral,
+       because everything sampled then is off screen. */
+    const sy = window.scrollY || window.pageYOffset;
+    if (!DUST.p || Math.abs(sy - DUST.builtAt) > 120) buildDust();
+
+    buildRip();
+    armTear();
+
+    els.trigger.classList.remove('charging');
+    window.GWAudio.merge();
+    window.GWAudio.tear();
+    if (intensity !== 'off' && navigator.vibrate) {
+      try { navigator.vibrate([28, 22, 90, 36, 240, 70, 130]); } catch (e) {}
+    }
+  }
+
+  function finish() {
+    S.running = false;
+    S.merged = false;
+    S.shockT = 0;
+    S.reformP = 0;
+    S.ripOpen = 0;
+    S.tearG = 0;
+    S.useAudioClock = false;
+    els.trigger.classList.remove('charging');
+    els.trigger.removeAttribute('aria-disabled');
+    els.hint.style.opacity = '';
+    els.hero.style.filter = '';
+    filterOn = false;
+    setWarpHints(false);
+    root.style.setProperty('--tear-g', '0');
+    for (let i = 0; i < targets.length; i++) {
+      const st = targets[i].el.style;
+      st.setProperty('--w', '0');
+      st.setProperty('--tr', '0');
+      st.setProperty('--tv', '0');
+      targets[i].w = 0; targets[i].tr = 0; targets[i].tv = 0;
+      targets[i].dirty = false;
+    }
+    drawRip();
+    drawDust();
+  }
+
+  /* ============================================================
+     14. Wiring
+     ============================================================ */
+  buildTitle();
+  splitWords();
+  buildGrain(180);
+  applyIntensity(intensity);
+  measure();
+  sizeCanvases();
+
+  els.trigger.addEventListener('click', () => {
+    /* the first click is also the autoplay gesture */
+    if (!window.GWAudio.isEnabled() && !window.GWAudio.hasCtx()) {
+      window.GWAudio.setEnabled(true);
+      els.soundBtn.setAttribute('aria-pressed', 'true');
+      els.soundLbl.textContent = 'SOUND ON';
+    }
+    start();
+  });
+
+  els.soundBtn.addEventListener('click', () => {
+    const on = window.GWAudio.setEnabled(!window.GWAudio.isEnabled());
+    els.soundBtn.setAttribute('aria-pressed', String(on));
+    els.soundLbl.textContent = on ? 'SOUND ON' : 'SOUND OFF';
+  });
+
+  $$('.intensity button').forEach(b => {
+    b.addEventListener('click', () => {
+      applyIntensity(b.dataset.int);
+      if (b.dataset.int === 'off') { S.trauma = 0; S.flash = 0; }
+    });
+  });
+
+  els.form.addEventListener('submit', e => {
+    e.preventDefault();
+    const v = els.email.value.trim();
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+    els.email.classList.toggle('invalid', !ok);
+    els.formNote.textContent = ok
+      ? 'Logged. Next unusual event, you hear about it first.'
+      : 'That address will not resolve. Try again.';
+    if (ok) els.email.value = '';
+  });
+
+  window.addEventListener('resize', scheduleMeasure, { passive: true });
+
+  document.addEventListener('visibilitychange', () => {
+    paused = document.hidden;
+    if (paused && S.running) { window.GWAudio.abort(); finish(); }
+  });
+
+  window.addEventListener('keydown', e => {
+    if ((e.key === 'm' || e.key === 'M') &&
+        !S.running && document.activeElement !== els.email) start();
+  });
+
+  /* reassembly sound, fired once when the dust starts converging */
+  (function watchReform() {
+    requestAnimationFrame(watchReform);
+    if (S.running && !reformFired && S.reformP > 0) {
+      reformFired = true;
+      window.GWAudio.reform(T_REFORM);
+    }
+  })();
+
+  /* ---- dev handle: ?debug=1 exposes the timeline for scrubbing ---- */
+  if (/[?&]debug=1/.test(location.search)) {
+    window.__gw = {
+      S: S, bh: bh, quality: quality, waves: WAVES, dust: DUST, rip: RIP,
+      targets: () => targets, start: start, finish: finish,
+      seek: function (sec) {
+        if (!S.running) start();
+        S.useAudioClock = false;
+        S.scrub = null;
+        S.t0 = performance.now() - sec * 1000;
+        if (sec >= T_MERGE && !S.merged) fireMerge();
+        if (sec < T_MERGE) { S.merged = false; S.flash = 0; }
+        return sec;
+      },
+      /* pin the clock so a still can be inspected */
+      scrub: function (sec) {
+        if (!S.running) start();
+        S.useAudioClock = false;
+        if (sec >= T_MERGE && !S.merged) fireMerge();
+        if (sec < T_MERGE) { S.merged = false; S.flash = 0; }
+        S.scrub = sec;
+        return sec;
+      },
+      play: function () { S.scrub = null; S.t0 = performance.now(); },
+      marks: {
+        merge: T_MERGE, rip: T_MERGE, void: T_MERGE + T_RIP,
+        reform: T_MERGE + T_RIP + T_VOID, end: T_END
+      }
+    };
+  }
+
+  requestAnimationFrame(frame);
+})();
+
+</script>
+
+</body></html>
