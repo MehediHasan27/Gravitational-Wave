@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SINGULARIS — Two Black Holes Become One</title>
+<meta name="description" content="A gravitational-wave merger, rendered in the browser. Two black holes spiral in, collide, and send a ripple through the page itself.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- ============================================================
+     SVG displacement filter — applied to the hero only, one-shot.
+     JS animates scale/baseFrequency during merge + shock passage.
+     ============================================================ -->
+<svg class="filter-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="gw-displace" x="-15%" y="-15%" width="130%" height="130%"
+            color-interpolation-filters="sRGB">
+      <feTurbulence id="gw-turb" type="fractalNoise"
+                    baseFrequency="0.004 0.012" numOctaves="2" seed="7"
+                    result="noise"/>
+      <feDisplacementMap id="gw-disp" in="SourceGraphic" in2="noise"
+                         scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- shake wrapper: ONLY ever gets translate3d/rotate. Never anything else,
+     so it can't fight the per-element warp transforms. -->
+<div id="shake">
+<div id="page">
+
+  <!-- ============================ HERO ============================ -->
+  <header class="hero" id="hero">
+    <canvas id="bh" aria-hidden="true"></canvas>
+    <div class="hero-veil" aria-hidden="true"></div>
+
+    <nav class="nav">
+      <span class="brand" data-warp="text">SINGULARIS</span>
+      <ul class="nav-links">
+        <li><a href="#effects" data-warp="text">Observatory</a></li>
+        <li><a href="#log" data-warp="text">Research</a></li>
+        <li><a href="#signal" data-warp="text">Archive</a></li>
+      </ul>
+      <button class="sound-toggle" id="soundToggle" aria-pressed="false"
+              title="Toggle sound">
+        <span class="sound-icon" aria-hidden="true"></span>
+        <span class="sound-label">SOUND OFF</span>
+      </button>
+    </nav>
+
+    <div class="hero-inner">
+      <p class="eyebrow" data-warp="text">
+        <span class="pulse-dot" aria-hidden="true"></span>
+        GW260730 &middot; 62 M<sub>&#9737;</sub> &middot; 4.1 BILLION LIGHT YEARS
+      </p>
+
+      <h1 class="title" id="title" aria-label="Two black holes become one">
+        <!-- filled by JS: one span per glyph, each its own warp target -->
+      </h1>
+
+      <p class="lede" data-warp="text">
+        For a fifth of a second, three solar masses stopped being matter and
+        became a wave. It crossed four billion years of vacuum, passed through
+        the Earth, and stretched this page by one part in 10<sup>21</sup>.
+      </p>
+
+      <p class="hint" id="hint" data-warp="text">
+        Sound on. Headphones better. Content below distorts as the wave passes.
+      </p>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" id="trigger" data-warp="box">
+          <span class="btn-label">INITIATE MERGER</span>
+          <span class="btn-glow" aria-hidden="true"></span>
+        </button>
+        <a class="btn btn-ghost" href="#log" data-warp="box">READ THE PAPER</a>
+      </div>
+    </div>
+
+    <div class="scroll-cue" aria-hidden="true">
+      <span class="scroll-line"></span>
+    </div>
+  </header>
+
+  <!-- ============================ STATS ============================ -->
+  <section class="stats" aria-label="Merger parameters">
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-warp="text">62</span>
+      <span class="stat-lbl" data-warp="text">Final mass / M<sub>&#9737;</sub></span>
+    </div>
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-warp="text">3.0</span>
+      <span class="stat-lbl" data-warp="text">Radiated as gravity</span>
+    </div>
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-warp="text">250</span>
+      <span class="stat-lbl" data-warp="text">Peak frequency / Hz</span>
+    </div>
+    <div class="stat" data-warp="box">
+      <span class="stat-num" data-warp="text">0.2</span>
+      <span class="stat-lbl" data-warp="text">Duration / s</span>
+    </div>
+  </section>
+
+  <!-- ============================ EFFECTS ============================ -->
+  <section class="block" id="effects">
+    <p class="kicker" data-warp="text">01 &mdash; Propagation</p>
+    <h2 class="h2" data-warp="text">What the wave does to<br>everything it touches</h2>
+
+    <div class="cards">
+      <article class="card" data-warp="box">
+        <span class="card-idx" data-warp="text">i</span>
+        <h3 data-warp="text">Strain</h3>
+        <p data-warp="text">Space itself lengthens along one axis and shortens
+        along the other, then swaps, at the frequency of the orbit. Nothing
+        moves through space. Space moves.</p>
+      </article>
+      <article class="card" data-warp="box">
+        <span class="card-idx" data-warp="text">ii</span>
+        <h3 data-warp="text">Chirp</h3>
+        <p data-warp="text">As the orbit tightens, frequency climbs as
+        <em>(t<sub>c</sub>&minus;t)</em><sup>&minus;3/8</sup>. The same curve
+        drives the pitch you hear and the spin you see. One function, both senses.</p>
+      </article>
+      <article class="card" data-warp="box">
+        <span class="card-idx" data-warp="text">iii</span>
+        <h3 data-warp="text">Ringdown</h3>
+        <p data-warp="text">The remnant is briefly the wrong shape. It rings
+        like a struck bell at its quasinormal modes, sheds the asymmetry, and
+        settles into perfect Kerr silence.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================ LOG ============================ -->
+  <section class="block narrow" id="log">
+    <p class="kicker" data-warp="text">02 &mdash; Detection log</p>
+    <h2 class="h2" data-warp="text">0.2 seconds, four billion years late</h2>
+
+    <p class="body" data-warp="text">
+      The two bodies had been circling each other for an age, radiating orbital
+      energy away as gravitational waves and falling inward to pay for it. That
+      is the whole story: a slow leak, then a fast one, then none.
+    </p>
+    <p class="body" data-warp="text">
+      In the final second the separation collapsed from a few hundred kilometres
+      to nothing. Orbital velocity reached over half the speed of light. The
+      accretion flow &mdash; the hot, magnetised gas you can see above &mdash;
+      was sheared into arms, torn between two wells that were about to become one.
+    </p>
+    <p class="body pull" data-warp="text">
+      At peak, the merger radiated more power than every star in the observable
+      universe combined. It emitted almost no light.
+    </p>
+    <p class="body" data-warp="text">
+      What arrived here was a strain of 10<sup>&minus;21</sup>. Over the four
+      kilometre arm of an interferometer that is a displacement one thousandth
+      the width of a proton. We measured it. Twice, on two continents, seven
+      milliseconds apart.
+    </p>
+  </section>
+
+  <!-- ============================ SIGNAL ============================ -->
+  <section class="block narrow" id="signal">
+    <p class="kicker" data-warp="text">03 &mdash; Subscribe</p>
+    <h2 class="h2" data-warp="text">Get the next one</h2>
+    <p class="body" data-warp="text">
+      Roughly one detection a week now. We send a short note when something
+      unusual comes through &mdash; an unexpected mass gap, a neutron star, an
+      event with an optical counterpart.
+    </p>
+    <form class="signup" id="signup" novalidate>
+      <label class="sr-only" for="email">Email address</label>
+      <input class="field" id="email" name="email" type="email"
+             placeholder="you@observatory.org" data-warp="box" required>
+      <button class="btn btn-primary compact" type="submit" data-warp="box">
+        <span class="btn-label">NOTIFY ME</span>
+        <span class="btn-glow" aria-hidden="true"></span>
+      </button>
+    </form>
+    <p class="fineprint" id="formNote" data-warp="text" role="status">
+      No tracking. Unsubscribe in one click.
+    </p>
+  </section>
+
+  <footer class="foot">
+    <span data-warp="text">SINGULARIS &mdash; Gravitational Design Lab</span>
+    <span data-warp="text">Rendered live &middot; no video, no audio files</span>
+  </footer>
+
+</div><!-- /#page -->
+</div><!-- /#shake -->
+
+<!-- ============================================================
+     Overlays. Outside #shake so shake never double-transforms them.
+     ============================================================ -->
+
+<!-- expanding shock ring: backdrop-filter distorts EVERYTHING behind it -->
+<div class="shock-lens" id="shockLens" aria-hidden="true"></div>
+<!-- visible light of the wavefront -->
+<div class="shock-glow" id="shockGlow" aria-hidden="true"></div>
+<!-- merge flash -->
+<div class="flash" id="flash" aria-hidden="true"></div>
+<!-- film grain / gravitational noise -->
+<div class="grain" id="grain" aria-hidden="true"></div>
+
+<!-- intensity control -->
+<div class="intensity" role="group" aria-label="Motion intensity">
+  <button data-int="full">FULL</button>
+  <button data-int="reduced">REDUCED</button>
+  <button data-int="off">OFF</button>
+</div>
+
+<script src="assets/blackhole.js"></script>
+<script src="assets/audio.js"></script>
+<script src="assets/main.js"></script>
+</body>
+</html>
